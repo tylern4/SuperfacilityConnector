@@ -19,6 +19,7 @@ setup(
     author="Nick Tyler",
     author_email="tylern@lbl.gov",
     packages=['SuperfacilityAPI'],
+    package_dir={'': 'python'},
     install_requires=[
         'authlib',
     ],
