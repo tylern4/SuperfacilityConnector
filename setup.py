@@ -7,7 +7,7 @@ from pathlib import Path
 _dir = Path(__file__).resolve().parent
 
 print(_dir)
-with open(f"{_dir}/../README.md") as f:
+with open(f"{_dir}/README.md") as f:
     long_desc = f.read()
 
 setup(
