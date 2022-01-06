@@ -1,0 +1,17 @@
+#!/usr/bin/env python3
+from SuperfacilityAPI import SuperfacilityAPI
+import click
+import pprint
+
+
+@click.command()
+@click.option('--status', help='Get NERSC status')
+def main(status):
+    sfapi = SuperfacilityAPI()
+    output_json = sfapi.status(
+    ) if status is None else sfapi.status(f'{status}')
+    pprint.pprint(output_json)
+
+
+if __name__ == '__main__':
+    main()
