@@ -81,11 +81,26 @@ def systems(ctx):
 
 @cli.command()
 @click.pass_context
+def roles(ctx):
+    sfapi = ctx.obj['sfapi']
+    ret = sfapi.roles()
+    try:
+        df = pd.DataFrame(ret)
+        mypprint(
+            df[['repo_name', 'id', 'iris_role', 'description']])
+
+    except Exception as e:
+        mypprint(ret)
+
+
+@cli.command()
+@click.pass_context
 def projects(ctx):
     sfapi = ctx.obj['sfapi']
-    json_out = sfapi.projects()
+
+    ret = sfapi.projects()
     try:
-        df = pd.DataFrame(json_out)
+        df = pd.DataFrame(ret)
 
         df['Hours Left [%]'] = 100 * \
             (df['hours_given']-df['hours_used'])/df['hours_given']
@@ -93,10 +108,10 @@ def projects(ctx):
             (df['project_hours_given']-df['project_hours_used']) / \
             df['project_hours_given']
         mypprint(
-            df[['repo_name', 'id', 'Hours Left [%]', 'Project Hours Left [%]']].reindex())
+            df[['repo_name', 'id', 'description', 'Hours Left [%]', 'Project Hours Left [%]']])
 
     except Exception as e:
-        mypprint(json_out)
+        mypprint(ret)
 
 
 @cli.command()
