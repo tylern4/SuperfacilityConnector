@@ -20,7 +20,7 @@ setup(
     author_email="tylern@lbl.gov",
     packages=['SuperfacilityAPI'],
     package_dir={'': 'python'},
-    version='0.0.1'
+    version='0.0.1',
     scripts=['python/SuperfacilityAPI/bin/sfapi'],
     install_requires=[
         'authlib', 'requests', 'click', 'tabulate', 'pandas', 'numpy'
