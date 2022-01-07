@@ -2,6 +2,8 @@
 
 Connector to the SuperfaclityAPI in python with a command line program.
 
+Install with `pip install SuperfacilityConnector`.
+
 ### Functions without keys
 
 ```
