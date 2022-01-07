@@ -1,14 +1,24 @@
 #!/usr/bin/env python
 
-
-from setuptools import setup, find_packages
+import os
+from setuptools import setup
 from pathlib import Path
 
 _dir = Path(__file__).resolve().parent
 
-print(_dir)
 with open(f"{_dir}/README.md") as f:
     long_desc = f.read()
+
+
+def get_version():
+    try:
+        ver = os.popen('git describe').read()
+        ver = ver.split('-')[0][1:]
+
+        return ver
+    except:
+        return 'error'
+
 
 setup(
     name="SuperfacilityConnector",
@@ -20,6 +30,7 @@ setup(
     author_email="tylern@lbl.gov",
     packages=['SuperfacilityAPI'],
     package_dir={'': 'python'},
+    version=get_version(),
     scripts=['python/SuperfacilityAPI/bin/sfapi'],
     install_requires=[
         'authlib', 'requests', 'click', 'tabulate', 'pandas', 'numpy'
