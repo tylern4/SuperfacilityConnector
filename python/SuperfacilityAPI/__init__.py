@@ -4,13 +4,12 @@ from authlib.integrations.requests_client import OAuth2Session
 from authlib.oauth2.rfc7523 import PrivateKeyJWT
 import requests
 import sys
-from threading import Thread
 from time import sleep
 import json
 import logging
 
 # Configurations in differnt files
-from .error_warnings import *
+from .error_warnings import permissions_warning, warning_fourOfour, no_client
 from .api_version import API_VERSION
 from .nersc_systems import nersc_systems
 
@@ -225,6 +224,31 @@ class SuperfacilityAPI:
 
         return self.__generic_request(sub_url)
 
+    def ls(self, site: str = 'cori', remote_path: str = None) -> Dict:
+        """ls comand on a site
+
+        Parameters
+        ----------
+        site : str, optional
+            Name of the site you want to ls at, by default 'cori'
+        remote_path : str, optional
+            Path on the system, by default None
+
+        Returns
+        -------
+        Dict
+            [description]
+        """
+        if remote_path is None:
+            return None
+
+        sub_url = f'/utilities/ls'
+        path = remote_path.replace("/", "%2F")
+
+        sub_url = f'{sub_url}/{site}/{path}'
+
+        return self.__generic_request(sub_url)
+
     def projects(self, repo_name: str = None) -> Dict:
         """Get information about your projects
 
@@ -338,12 +362,3 @@ class SuperfacilityAPI:
 
     def upload(self):
         return None
-
-    def ls(self, site: str = 'cori', remote_path: str = None,):
-        sub_url = f'/utilities/ls'
-
-        path = remote_path.replace("/", "%2F")
-
-        sub_url = f'{sub_url}/{site}/{path}'
-
-        return self.__generic_request(sub_url)
