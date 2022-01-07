@@ -22,7 +22,7 @@ setup(
     package_dir={'': 'python'},
     scripts=['python/SuperfacilityAPI/bin/sfapi'],
     install_requires=[
-        'authlib', 'requests', 'click'
+        'authlib', 'requests', 'click', 'tabulate', 'pandas'
     ],
     classifiers=[
         "Programming Language :: Python :: 3",

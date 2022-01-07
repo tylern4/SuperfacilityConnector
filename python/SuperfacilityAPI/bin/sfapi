@@ -1,17 +1,84 @@
 #!/usr/bin/env python3
+from typing import Optional
+from requests.sessions import default_headers
 from SuperfacilityAPI import SuperfacilityAPI
 import click
-import pprint
+from pprint import pprint
+from pathlib import Path
+import sys
+
+try:
+    import pandas as pd
+    from tabulate import tabulate
+
+    def mypprint(df): return click.echo(
+        tabulate(df, headers='keys', tablefmt='fancy_grid', numalign="right", floatfmt="0.2f"))
+except ImportError as e:
+    def mypprint(df): return pprint(df)
 
 
-@click.command()
-@click.option('--status', help='Get NERSC status')
-def main(status):
-    sfapi = SuperfacilityAPI()
-    output_json = sfapi.status(
-    ) if status is None else sfapi.status(f'{status}')
-    pprint.pprint(output_json)
+@click.group()
+@click.option('--clientid', default=None, help='Client ID for your key.')
+@click.option('--private', default=None, help='Full path to pem format private key.')
+@click.pass_context
+def cli(ctx, clientid, private):
+    ctx.ensure_object(dict)
+    if private is not None and Path(private).is_file():
+        with open(Path(private).absolute()) as f:
+            private = f.read()
+
+    sfapi = SuperfacilityAPI(clientid, private)
+
+    ctx.obj['sfapi'] = sfapi
+
+
+@cli.command()
+@click.argument('site', default=None)
+@click.pass_context
+def status(ctx, site):
+    sfapi = ctx.obj['sfapi']
+    site = site if site != 'all' else None
+    output_json = sfapi.status(site)
+    if isinstance(output_json, dict):
+        output_json = [output_json]
+    output_json = [oj for oj in output_json if oj['description'] != 'Retired']
+
+    mypprint(output_json)
+
+
+@cli.command()
+@click.pass_context
+def token(ctx):
+    sfapi = ctx.obj['sfapi']
+    click.echo(sfapi.access_token)
+
+
+@cli.command()
+@click.pass_context
+def systems(ctx):
+    sfapi = ctx.obj['sfapi']
+    mypprint(sfapi.system_names())
+
+
+@cli.command()
+@click.pass_context
+def projects(ctx):
+    sfapi = ctx.obj['sfapi']
+    json_out = sfapi.projects()
+    try:
+        df = pd.DataFrame(json_out)
+
+        df['Hours Left [%]'] = 100 * \
+            (df['hours_given']-df['hours_used'])/df['hours_given']
+        df['Project Hours Left [%]'] = 100 * \
+            (df['project_hours_given']-df['project_hours_used']) / \
+            df['project_hours_given']
+        mypprint(
+            df[['repo_name', 'id', 'Hours Left [%]', 'Project Hours Left [%]']].reindex())
+
+    except Exception as e:
+        mypprint(json_out)
 
 
 if __name__ == '__main__':
-    main()
+    cli(obj={})
