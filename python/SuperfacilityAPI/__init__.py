@@ -12,6 +12,7 @@ import logging
 # Configurations in differnt files
 from .error_warnings import *
 from .api_version import API_VERSION
+from .nersc_systems import nersc_systems
 
 
 class SuperfacilityAPI:
@@ -52,9 +53,7 @@ class SuperfacilityAPI:
             self.headers = {'accept': 'application/json',
                             'Content-Type': 'application/x-www-form-urlencoded', }
 
-        # Starts a thread to get the status since it takes a while to get the full status
-        self.__status = Thread(target=self.__get_system_status)
-        self.__status.start()
+        self._status = None
 
     @property
     def token(self):
@@ -182,9 +181,7 @@ class SuperfacilityAPI:
         self.systems = [system['name'] for system in self._status]
 
     def system_names(self):
-        if self.__status.is_alive():
-            self.__status.join()
-
+        self.__get_system_status()
         return self.systems
 
     def status(self, name: str = None, notes: bool = False, outages: bool = False, planned: bool = False, new: bool = False) -> Dict:
@@ -218,13 +215,12 @@ class SuperfacilityAPI:
         if planned:
             sub_url = '/status/outages/planned'
 
-        if name is not None and name in self.system_names():
+        if name is not None and name in nersc_systems:
             sub_url = f'{sub_url}/{name}'
 
         if sub_url == '/status' and not new:
-            if self.__status.is_alive():
-                self.__status.join()
-
+            if self._status is None:
+                self.__get_system_status()
             return self._status
 
         return self.__generic_request(sub_url)
