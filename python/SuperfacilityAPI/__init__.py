@@ -262,14 +262,14 @@ class SuperfacilityAPI:
 
     def get_job(self, site: str = 'cori', sacct: bool = True,
                 jobid: int = None, user: int = None):
-
         sub_url = f'/compute/jobs/{site}'
         if jobid is not None:
             sub_url = f'{sub_url}/{jobid}'
+
         sub_url = f'{sub_url}?sacct={"true" if sacct else "false"}'
 
-        if user is not None and jobid is None:
-            f'{sub_url}&kwargs=user%3D{user}'
+        if user is not None:
+            sub_url = f'{sub_url}&kwargs=user%3D{user}'
 
         return self.__generic_request(sub_url)
 
@@ -339,5 +339,11 @@ class SuperfacilityAPI:
     def upload(self):
         return None
 
-    def ls(self):
-        return None
+    def ls(self, site: str = 'cori', remote_path: str = None,):
+        sub_url = f'/utilities/ls'
+
+        path = remote_path.replace("/", "%2F")
+
+        sub_url = f'{sub_url}/{site}/{path}'
+
+        return self.__generic_request(sub_url)

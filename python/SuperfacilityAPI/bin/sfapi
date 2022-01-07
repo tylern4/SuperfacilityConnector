@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-from typing import Optional
-from requests.sessions import default_headers
+
 from SuperfacilityAPI import SuperfacilityAPI
+
 import click
-from pprint import pprint
+from pprint import pp, pprint
 from pathlib import Path
-import sys
+from glob import glob
 
 try:
     import pandas as pd
@@ -17,15 +17,34 @@ except ImportError as e:
     def mypprint(df): return pprint(df)
 
 
+def check_file_and_open(file_path: str = "") -> str:
+    contents = None
+    pth = Path(file_path)
+    if pth.is_file():
+        with open(pth.absolute()) as f:
+            contents = f.read()
+    return contents
+
+
 @click.group()
-@click.option('--clientid', default=None, help='Client ID for your key.')
+@click.option('--clientid', default=None, help='Client ID for your key. Can be used to specify which key to look for in $HOME/.superfacility.')
 @click.option('--private', default=None, help='Full path to pem format private key.')
 @click.pass_context
 def cli(ctx, clientid, private):
+    # Entrypoint for all the cli subcommands
+    # Basically an __init__ function that sets up the sfapi
     ctx.ensure_object(dict)
-    if private is not None and Path(private).is_file():
-        with open(Path(private).absolute()) as f:
-            private = f.read()
+
+    if private is not None:
+        private = check_file_and_open(private)
+    elif clientid is not None:
+        private = check_file_and_open(
+            f'{Path.home()}/.superfacility/{clientid}.pem')
+    else:
+        pem = glob(f'{Path.home()}/.superfacility/*.pem')
+        if len(pem) > 0:
+            clientid = pem[0].split("/")[-1][:-4]
+            private = check_file_and_open(pem[0])
 
     sfapi = SuperfacilityAPI(clientid, private)
 
@@ -78,6 +97,73 @@ def projects(ctx):
 
     except Exception as e:
         mypprint(json_out)
+
+
+@cli.command()
+@click.argument('site', default=None)
+@click.option('--path', default=None, help='Path to slurm submit file at NERSC.')
+@click.option('--local', default=None, help='Path to local file to submit.')
+@click.pass_context
+def sbatch(ctx, site, path, local):
+    sfapi = ctx.obj['sfapi']
+    script = None
+    isPath = False
+
+    if path is not None:
+        isPath = True
+        script = path
+    elif local is not None:
+        script = check_file_and_open(local)
+
+    ret = sfapi.post_job(site=site, script=script, isPath=isPath)
+    try:
+        click.echo(ret['jobid'])
+    except Exception as e:
+        click.echo(e)
+
+
+@cli.command()
+@click.argument('site', default=None)
+@click.option('--path', default=None, help='Path to slurm submit file at NERSC.')
+@click.pass_context
+def ls(ctx, site, path):
+    sfapi = ctx.obj['sfapi']
+
+    ret = sfapi.ls(site=site, remote_path=path)
+    try:
+        mypprint(ret['entries'])
+    except Exception as e:
+        click.echo(e)
+
+
+@cli.command()
+@click.argument('site', default=None)
+@click.option('--sacct/--no-sacct', default=False)
+@click.option('--user', default=None, help='User to to get queue info for.')
+@click.option('--jobid', default=None, help='Specific jobid to get queue info for.')
+@click.pass_context
+def squeue(ctx, site, sacct, user, jobid):
+    sfapi = ctx.obj['sfapi']
+
+    ret = sfapi.get_job(site=site, sacct=sacct, user=user, jobid=jobid)
+    try:
+        pprint(ret['output'])
+    except Exception as e:
+        click.echo(e)
+
+
+@cli.command()
+@click.argument('site', default=None)
+@click.option('--jobid', default=None, help='Specific jobid to get queue info for.')
+@click.pass_context
+def scancel(ctx, site, jobid):
+    sfapi = ctx.obj['sfapi']
+
+    ret = sfapi.delete_job(site=site, jobid=jobid)
+    try:
+        pprint(ret)
+    except Exception as e:
+        click.echo(e)
 
 
 if __name__ == '__main__':
