@@ -10,16 +10,6 @@ with open(f"{_dir}/README.md") as f:
     long_desc = f.read()
 
 
-def get_version():
-    try:
-        ver = os.popen('git describe').read()
-        ver = ver.split('-')[0][1:]
-
-        return ver
-    except:
-        return 'error'
-
-
 setup(
     name="SuperfacilityConnector",
     description="Connector API NERSC Superfacility",
@@ -30,7 +20,7 @@ setup(
     author_email="tylern@lbl.gov",
     packages=['SuperfacilityAPI'],
     package_dir={'': 'python'},
-    version=get_version(),
+    version='0.0.1'
     scripts=['python/SuperfacilityAPI/bin/sfapi'],
     install_requires=[
         'authlib', 'requests', 'click', 'tabulate', 'pandas', 'numpy'
