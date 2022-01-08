@@ -57,12 +57,12 @@ def cli(ctx, clientid, private):
 def status(ctx, site):
     sfapi = ctx.obj['sfapi']
     site = site if site != 'all' else None
-    output_json = sfapi.status(site)
-    if isinstance(output_json, dict):
-        output_json = [output_json]
-    output_json = [oj for oj in output_json if oj['description'] != 'Retired']
+    ret = sfapi.status(site)
+    if isinstance(ret, dict):
+        ret = [ret]
+    ret = [oj for oj in ret if oj['description'] != 'Retired']
 
-    mypprint(output_json)
+    mypprint(ret)
 
 
 @cli.command()

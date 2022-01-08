@@ -1,5 +1,5 @@
 
-from typing import Dict
+from typing import Dict, List
 from authlib.integrations.requests_client import OAuth2Session
 from authlib.oauth2.rfc7523 import PrivateKeyJWT
 import requests
@@ -175,11 +175,19 @@ class SuperfacilityAPI:
         json_resp = resp.json()
         return json_resp
 
-    def __get_system_status(self):
+    def __get_system_status(self) -> None:
+        """Gets the system status and all systems and stores them.
+        """
         self._status = self.__generic_request('/status')
         self.systems = [system['name'] for system in self._status]
 
-    def system_names(self):
+    def system_names(self) -> List:
+        """Returns list of all systems at NERSC
+
+        Returns
+        -------
+        List
+        """
         self.__get_system_status()
         return self.systems
 
@@ -237,7 +245,6 @@ class SuperfacilityAPI:
         Returns
         -------
         Dict
-            [description]
         """
         if remote_path is None:
             return None
@@ -278,14 +285,43 @@ class SuperfacilityAPI:
         sub_url = '/account/roles'
         return self.__generic_request(sub_url)
 
-    def tasks(self, task_id: int = None):
+    def tasks(self, task_id: int = None) -> Dict:
+        """Used to get SuperfacilityAPI tasks
+
+        Parameters
+        ----------
+        task_id : int, optional
+            SuperfacilityAPI task number, by default None
+
+        Returns
+        -------
+        Dict
+        """
         sub_url = '/tasks'
         if task_id is not None:
             sub_url = f'{sub_url}/{task_id}'
         return self.__generic_request(sub_url)
 
     def get_job(self, site: str = 'cori', sacct: bool = True,
-                jobid: int = None, user: int = None):
+                jobid: int = None, user: int = None) -> Dict:
+        """Used to get information about slurm jobs on a system
+
+        Parameters
+        ----------
+        site : str, optional
+            NERSC site where slurm job is running, by default 'cori'
+        sacct : bool, optional
+            Whether to use sacct[true] or squeue[false], by default True
+        jobid : int, optional
+            Slurm job id to get information for, by default None
+        user : int, optional
+            Username to get information for, by default None
+
+        Returns
+        -------
+        Dict
+
+        """
         sub_url = f'/compute/jobs/{site}'
         if jobid is not None:
             sub_url = f'{sub_url}/{jobid}'
@@ -297,8 +333,23 @@ class SuperfacilityAPI:
 
         return self.__generic_request(sub_url)
 
-    def post_job(self, site: str = 'cori', script: str = None, isPath: bool = True):
+    def post_job(self, site: str = 'cori', script: str = None, isPath: bool = True) -> int:
+        """Adds a new job to the queue
 
+        Parameters
+        ----------
+        site : str, optional
+            Site to add job to, by default 'cori'
+        script : str, optional
+            Path or script to call sbatch on, by default None
+        isPath : bool, optional
+            Is the script a path on the site or a file, by default True
+
+        Returns
+        -------
+        int
+            slurm jobid
+        """
         sub_url = f'/compute/jobs/{site}'
         script.replace("/", "%2F")
 
@@ -319,7 +370,20 @@ class SuperfacilityAPI:
         task = self.tasks(resp['task_id'])
         return json.loads(task['result'])
 
-    def delete_job(self, site: str = 'cori', jobid: int = None):
+    def delete_job(self, site: str = 'cori', jobid: int = None) -> Dict:
+        """Removes job from queue
+
+        Parameters
+        ----------
+        site : str, optional
+            Site to remove job from, by default 'cori'
+        jobid : int, optional
+            Jobid to remove, by default None
+
+        Returns
+        -------
+        Dict
+        """
         sub_url = f'/compute/jobs/{site}/{jobid}'
         return self.__generic_delete(sub_url)
 
