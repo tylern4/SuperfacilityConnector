@@ -3,7 +3,7 @@
 from SuperfacilityAPI import SuperfacilityAPI
 
 import click
-from pprint import pp, pprint
+from pprint import pprint
 from pathlib import Path
 from glob import glob
 
@@ -56,10 +56,19 @@ def cli(ctx, clientid, private):
 @click.pass_context
 def status(ctx, site):
     sfapi = ctx.obj['sfapi']
-    site = site if site != 'all' else None
-    ret = sfapi.status(site)
-    if isinstance(ret, dict):
-        ret = [ret]
+
+    if site in ['compute', 'computes']:
+        site = 'cori,perlmutter'
+    elif site in ['filesystem', 'filesystems']:
+        site = 'dna,dtns,global_homes,projectb,global_common,community_filesystem'
+    elif site in ['login', 'logins']:
+        site = 'cori,perlmutter,jupyter,dtns'
+
+    if site == 'all':
+        ret = sfapi.status(None)
+    else:
+        ret = [sfapi.status(site) for site in site.split(",")]
+
     ret = [oj for oj in ret if oj['description'] != 'Retired']
 
     mypprint(ret)
