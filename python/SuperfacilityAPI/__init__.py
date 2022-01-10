@@ -5,13 +5,14 @@ from authlib.oauth2.rfc7523 import PrivateKeyJWT
 import requests
 import sys
 from time import sleep
+from datetime import datetime
 import json
 import logging
 
 # Configurations in differnt files
 from .error_warnings import permissions_warning, warning_fourOfour, no_client
 from .api_version import API_VERSION
-from .nersc_systems import nersc_systems
+from .nersc_systems import NERSC_DEFAULT_COMPUTE, nersc_systems, nersc_compute, nersc_filesystems
 
 
 class SuperfacilityAPI:
@@ -30,13 +31,31 @@ class SuperfacilityAPI:
         # self.base_url = f'https://api.nersc.gov/api/v{self.API_VERSION}'
         self.base_url = f'https://api.nersc.gov/api/v{self.API_VERSION}'
 
-        # Create access token from client_id/private_key
+        # TODO: Check a better way to store these, esspecially private key
+        self.client_id = client_id
+        self.private_key = private_key
+
+        # Create an access token in the __renew_toekn function
         self.access_token = None
-        if client_id is not None and private_key is not None:
+        self.__renew_token()
+
+        # Set the status at the begining to none,
+        # If status is called later it will be stored here
+        # for faster calls later
+        self._status = None
+
+    @property
+    def token(self):
+        return self.access_token
+
+    def __renew_token(self):
+        # Create access token from client_id/private_key
+        self.__token_time = datetime.now()
+        if self.client_id is not None and self.private_key is not None:
             token_url = "https://oidc.nersc.gov/c2id/token"
             session = OAuth2Session(
-                client_id,
-                private_key,
+                self.client_id,
+                self.private_key,
                 PrivateKeyJWT(token_url),
                 grant_type="client_credentials",
                 token_endpoint=token_url
@@ -50,13 +69,7 @@ class SuperfacilityAPI:
         else:
             # If no client_id/private_key given only status is useful
             self.headers = {'accept': 'application/json',
-                            'Content-Type': 'application/x-www-form-urlencoded', }
-
-        self._status = None
-
-    @property
-    def token(self):
-        return self.access_token
+                            'Content-Type': 'application/x-www-form-urlencoded'}
 
     def __generic_request(self, sub_url: str, header: Dict = None) -> Dict:
         """PRIVATE: Used to make a GET request to the api given a fully qualified sub url.
@@ -72,6 +85,10 @@ class SuperfacilityAPI:
         Dict
             Dictionary given by requests.Responce.json()
         """
+        # If key is older than 10 minutes renew
+        if self.access_token is not None and (datetime.now() - self.__token_time).seconds > (10*60):
+            self.__renew_token()
+
         try:
             # Perform a get request
             resp = requests.get(
@@ -110,6 +127,10 @@ class SuperfacilityAPI:
         Dict
             Dictionary given by requests.Responce.json()
         """
+        # If key is older than 10 minutes renew
+        if self.access_token is not None and (datetime.now() - self.__token_time).seconds > (10*60):
+            self.__renew_token()
+
         try:
             # Perform a get request
             resp = requests.post(
@@ -150,6 +171,10 @@ class SuperfacilityAPI:
         Dict
             Dictionary given by requests.Responce.json()
         """
+        # If key is older than 10 minutes renew
+        if self.access_token is not None and (datetime.now() - self.__token_time).seconds > (10*60):
+            self.__renew_token()
+
         try:
             # Perform a get request
             resp = requests.delete(
@@ -232,13 +257,13 @@ class SuperfacilityAPI:
 
         return self.__generic_request(sub_url)
 
-    def ls(self, site: str = 'cori', remote_path: str = None) -> Dict:
+    def ls(self, site: str = NERSC_DEFAULT_COMPUTE, remote_path: str = None) -> Dict:
         """ls comand on a site
 
         Parameters
         ----------
         site : str, optional
-            Name of the site you want to ls at, by default 'cori'
+            Name of the site you want to ls at, by default NERSC_DEFAULT_COMPUTE
         remote_path : str, optional
             Path on the system, by default None
 
@@ -302,14 +327,14 @@ class SuperfacilityAPI:
             sub_url = f'{sub_url}/{task_id}'
         return self.__generic_request(sub_url)
 
-    def get_job(self, site: str = 'cori', sacct: bool = True,
+    def get_job(self, site: str = NERSC_DEFAULT_COMPUTE, sacct: bool = True,
                 jobid: int = None, user: int = None) -> Dict:
         """Used to get information about slurm jobs on a system
 
         Parameters
         ----------
         site : str, optional
-            NERSC site where slurm job is running, by default 'cori'
+            NERSC site where slurm job is running, by default NERSC_DEFAULT_COMPUTE
         sacct : bool, optional
             Whether to use sacct[true] or squeue[false], by default True
         jobid : int, optional
@@ -322,6 +347,9 @@ class SuperfacilityAPI:
         Dict
 
         """
+        if site not in nersc_compute:
+            return None
+
         sub_url = f'/compute/jobs/{site}'
         if jobid is not None:
             sub_url = f'{sub_url}/{jobid}'
@@ -333,13 +361,13 @@ class SuperfacilityAPI:
 
         return self.__generic_request(sub_url)
 
-    def post_job(self, site: str = 'cori', script: str = None, isPath: bool = True) -> int:
+    def post_job(self, site: str = NERSC_DEFAULT_COMPUTE, script: str = None, isPath: bool = True) -> int:
         """Adds a new job to the queue
 
         Parameters
         ----------
         site : str, optional
-            Site to add job to, by default 'cori'
+            Site to add job to, by default NERSC_DEFAULT_COMPUTE
         script : str, optional
             Path or script to call sbatch on, by default None
         isPath : bool, optional
@@ -350,6 +378,8 @@ class SuperfacilityAPI:
         int
             slurm jobid
         """
+        if site not in nersc_compute:
+            return None
         sub_url = f'/compute/jobs/{site}'
         script.replace("/", "%2F")
 
@@ -370,13 +400,13 @@ class SuperfacilityAPI:
         task = self.tasks(resp['task_id'])
         return json.loads(task['result'])
 
-    def delete_job(self, site: str = 'cori', jobid: int = None) -> Dict:
+    def delete_job(self, site: str = NERSC_DEFAULT_COMPUTE, jobid: int = None) -> Dict:
         """Removes job from queue
 
         Parameters
         ----------
         site : str, optional
-            Site to remove job from, by default 'cori'
+            Site to remove job from, by default NERSC_DEFAULT_COMPUTE
         jobid : int, optional
             Jobid to remove, by default None
 
@@ -384,15 +414,17 @@ class SuperfacilityAPI:
         -------
         Dict
         """
+        if site not in nersc_compute:
+            return None
         sub_url = f'/compute/jobs/{site}/{jobid}'
         return self.__generic_delete(sub_url)
 
     ################## In Progress #######################
-    def download(self, site: str = 'cori', remote_path: str = None, binary: bool = True, local_path: str = '.') -> Dict:
+    def download(self, site: str = NERSC_DEFAULT_COMPUTE, remote_path: str = None, binary: bool = True, local_path: str = '.') -> Dict:
         if site is None or remote_path is None:
             return False
 
-        if site not in ['cori', 'perlmutter']:
+        if site not in [NERSC_DEFAULT_COMPUTE, 'perlmutter']:
             return False
 
         sub_url = '/utilities/download'
