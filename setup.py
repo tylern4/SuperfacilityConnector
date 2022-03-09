@@ -9,8 +9,9 @@ _dir = Path(__file__).resolve().parent
 
 with open(f"{_dir}/README.md") as f:
     long_desc = f.read()
- 
-if sys.version_info >= (3,7,0):
+
+print(sys.version_info)
+if sys.version_info > (3,7,0):
     install_requires=['authlib', 'requests', 'click', 'tabulate', 'pandas', 'numpy']
 else:
     install_requires=['authlib', 'requests']
@@ -30,9 +31,8 @@ setup(
     install_requires=install_requires,
     classifiers=[
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.7",
         "Operating System :: OS Independent",
         "Topic :: Scientific/Engineering",
     ],
-    python_requires=">=3.7",
+    python_requires=">=3.5",
 )
