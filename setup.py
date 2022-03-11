@@ -7,13 +7,11 @@ import sys
 
 _dir = Path(__file__).resolve().parent
 
-with open(f"{_dir}/python/SuperfacilityAPI/README.md") as f:
-    long_desc = f.read()
 
 with open(f"{_dir}/README.md") as f:
-    long_desc += """
+    long_desc = """
 
-    ## Cli Docs
+    ## Docs
 
     """
     try:
@@ -22,11 +20,11 @@ with open(f"{_dir}/README.md") as f:
         long_desc += ""
 
 
-if sys.version_info > (3,7,0):
-    install_requires=['authlib', 'requests', 'click', 'tabulate', 'pandas', 'numpy']
+if sys.version_info > (3, 7, 0):
+    install_requires = ['authlib', 'requests', 'click', 'tabulate', 'pandas', 'numpy']
 else:
     print(sys.version_info)
-    install_requires=['authlib', 'requests', 'click']
+    install_requires = ['authlib', 'requests', 'click']
     print(install_requires)
 
 setup(
@@ -39,7 +37,7 @@ setup(
     author_email="tylern@lbl.gov",
     packages=['SuperfacilityAPI'],
     package_dir={'': 'python'},
-    version='0.0.3',
+    version='0.0.4',
     scripts=['python/SuperfacilityAPI/bin/sfapi'],
     install_requires=install_requires,
     classifiers=[
