@@ -15,7 +15,7 @@ if sys.version_info > (3,7,0):
     install_requires=['authlib', 'requests', 'click', 'tabulate', 'pandas', 'numpy']
 else:
     print(sys.version_info)
-    install_requires=['authlib', 'requests']
+    install_requires=['authlib', 'requests', 'click']
     print(install_requires)
     
 setup(
