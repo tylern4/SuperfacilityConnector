@@ -10,11 +10,13 @@ _dir = Path(__file__).resolve().parent
 with open(f"{_dir}/README.md") as f:
     long_desc = f.read()
 
-print(sys.version_info)
+
 if sys.version_info > (3,7,0):
     install_requires=['authlib', 'requests', 'click', 'tabulate', 'pandas', 'numpy']
 else:
+    print(sys.version_info)
     install_requires=['authlib', 'requests']
+    print(install_requires)
     
 setup(
     name="SuperfacilityConnector",
