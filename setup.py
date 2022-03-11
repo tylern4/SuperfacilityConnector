@@ -7,8 +7,19 @@ import sys
 
 _dir = Path(__file__).resolve().parent
 
-with open(f"{_dir}/README.md") as f:
+with open(f"{_dir}/python/SuperfacilityAPI/README.md") as f:
     long_desc = f.read()
+
+with open(f"{_dir}/README.md") as f:
+    long_desc += """
+
+    ## Cli Docs
+
+    """
+    try:
+        long_desc += f.read()
+    except UnicodeDecodeError:
+        long_desc += ""
 
 
 if sys.version_info > (3,7,0):
@@ -17,7 +28,7 @@ else:
     print(sys.version_info)
     install_requires=['authlib', 'requests', 'click']
     print(install_requires)
-    
+
 setup(
     name="SuperfacilityConnector",
     description="Connector API NERSC Superfacility",

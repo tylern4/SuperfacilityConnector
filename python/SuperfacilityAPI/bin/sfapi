@@ -27,7 +27,8 @@ def check_file_and_open(file_path: str = "") -> str:
 
 
 @click.group()
-@click.option('--clientid', default=None, help='Client ID for your key. Can be used to specify which key to look for in $HOME/.superfacility.')
+@click.option('--clientid', default=None,
+              help='Client ID for your key. Can be used to specify which key to look for in $HOME/.superfacility.')
 @click.option('--private', default=None, help='Full path to pem format private key.')
 @click.pass_context
 def cli(ctx, clientid, private):
@@ -71,6 +72,8 @@ def status(ctx, site):
 
     ret = [oj for oj in ret if oj['description'] != 'Retired']
 
+    ret = [{k: oj[k] for k in ['full_name', 'description', 'status', 'updated_at']} for oj in ret]
+
     mypprint(ret)
 
 
@@ -94,10 +97,8 @@ def roles(ctx):
     sfapi = ctx.obj['sfapi']
     ret = sfapi.roles()
     try:
-        df = pd.DataFrame(ret)
-        mypprint(
-            df[['repo_name', 'id', 'iris_role', 'description']])
-
+        ret = [{k: oj[k] for k in ['repo_name', 'id', 'iris_role', 'description']} for oj in ret]
+        mypprint(ret)
     except Exception as e:
         mypprint(ret)
 
@@ -162,6 +163,30 @@ def ls(ctx, site, path):
 
 @cli.command()
 @click.argument('site', default=None)
+@click.option('--path', default=None, help='Path to slurm submit file at NERSC.')
+@click.pass_context
+def cat(ctx, site, path):
+    sfapi = ctx.obj['sfapi']
+
+    ret = sfapi.download(site=site, remote_path=path, save=False)
+
+    try:
+        print(ret['file'])
+    except Exception as e:
+        click.echo(e)
+
+
+# @cli.command()
+# @click.pass_context
+# def templates(ctx):
+#     sfapi = ctx.obj['sfapi']
+#     ret = sfapi.templates()
+
+#     print(ret)
+
+
+@cli.command()
+@click.argument('site', default=None)
 @click.option('--sacct/--no-sacct', default=False)
 @click.option('--user', default=None, help='User to to get queue info for.')
 @click.option('--jobid', default=None, help='Specific jobid to get queue info for.')
@@ -170,10 +195,29 @@ def squeue(ctx, site, sacct, user, jobid):
     sfapi = ctx.obj['sfapi']
 
     ret = sfapi.get_job(site=site, sacct=sacct, user=user, jobid=jobid)
+
+    cols = ['jobid', 'name',
+            'account',
+            'cpus',
+            'features',
+            'partition',
+            'reason',
+            'start_time',
+            'state',
+            'submit_time',
+            'time',
+            'time_left',
+            'time_limit',
+            ]
+
     try:
-        pprint(ret['output'])
+        if sacct:
+            click.echo(ret['output'])
+        else:
+            ret = [{k: oj[k] for k in cols} for oj in ret['output']]
+            mypprint(ret)
     except Exception as e:
-        click.echo(e)
+        click.echo(f"Error {e}")
 
 
 @cli.command()

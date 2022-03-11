@@ -1,6 +1,6 @@
 
 from typing import Dict, List
-from authlib.integrations.requests_client import OAuth2Session
+from authlib.integrations.requests_client import OAuth2Session, OAuthError
 from authlib.oauth2.rfc7523 import PrivateKeyJWT
 import requests
 import sys
@@ -28,8 +28,8 @@ class SuperfacilityAPI:
         """
         self.API_VERSION = API_VERSION
         # Base url for sfapi requests
-        # self.base_url = f'https://api.nersc.gov/api/v{self.API_VERSION}'
         self.base_url = f'https://api.nersc.gov/api/v{self.API_VERSION}'
+        # self.base_url = f'https://api-dev.nersc.gov/api/v{self.API_VERSION}'
 
         # TODO: Check a better way to store these, esspecially private key
         self.client_id = client_id
@@ -61,7 +61,11 @@ class SuperfacilityAPI:
                 token_endpoint=token_url
             )
             # Get's the access token
-            self.access_token = session.fetch_token()['access_token']
+            try:
+                self.access_token = session.fetch_token()['access_token']
+            except OAuthError as e:
+                print(f"Oauth error {e}\nMake sure your api key is still active in iris.nersc.gov", file=sys.stderr)
+                exit(2)
             # Builds the header with the access token for requests
             self.headers = {'accept': 'application/json',
                             'Content-Type': 'application/x-www-form-urlencoded',
@@ -420,7 +424,9 @@ class SuperfacilityAPI:
         return self.__generic_delete(sub_url)
 
     ################## In Progress #######################
-    def download(self, site: str = NERSC_DEFAULT_COMPUTE, remote_path: str = None, binary: bool = True, local_path: str = '.') -> Dict:
+    def download(self, site: str = NERSC_DEFAULT_COMPUTE, remote_path: str = None,
+                 binary: bool = True, local_path: str = '.', save: bool = False) -> Dict:
+
         if site is None or remote_path is None:
             return False
 
@@ -436,25 +442,32 @@ class SuperfacilityAPI:
         if binary:
             sub_url = f'{sub_url}?binary=true'
 
-        response = self.__generic_request(sub_url)
-        if response is not None:
-            if response['error'] is None:
-                with open(file_name, "wb") as f:
-                    byte = bytes(response['file'], 'utf8')
-                    f.write(byte)
-                return True
+        res = self.__generic_request(sub_url)
+        if res is not None:
+            if res['error'] is None:
+                if save:
+                    with open(file_name, "wb") as f:
+                        byte = bytes(res['file'], 'utf8')
+                        f.write(byte)
+                    return True
+                else:
+                    return res
         else:
-            return False
+            return False if save else None
 
-    def groups(self) -> Dict:
-        """Get the groups for your accout
+    # def groups(self) -> Dict:
+    #     """Get the groups for your accout
 
-        Returns
-        -------
-        Dict
-        """
-        sub_url = '/account/groups'
-        return self.__generic_request(sub_url)
+    #     Returns
+    #     -------
+    #     Dict
+    #     """
+    #     sub_url = '/account/groups'
+    #     return self.__generic_request(sub_url)
 
-    def upload(self):
-        return None
+    # def upload(self):
+    #     return None
+
+    # def templates(self):
+    #     sub_url = '/templates'
+    #     return self.__generic_request(sub_url)
