@@ -8,6 +8,7 @@ from time import sleep
 from datetime import datetime
 import json
 import logging
+from pathlib import Path
 
 # Configurations in differnt files
 from .error_warnings import permissions_warning, warning_fourOfour, no_client
@@ -16,7 +17,11 @@ from .nersc_systems import NERSC_DEFAULT_COMPUTE, nersc_systems, nersc_compute, 
 
 
 class SuperfacilityAPI:
-    def __init__(self, client_id: str = None, private_key: str = None):
+    client_id = None
+    private_key = None
+    key_path = None
+
+    def __init__(self, client_id: str = None, private_key: str = None, key_path: str = None):
         """SuperfacilityAPI
 
         Parameters
@@ -32,8 +37,17 @@ class SuperfacilityAPI:
         # self.base_url = f'https://api-dev.nersc.gov/api/v{self.API_VERSION}'
 
         # TODO: Check a better way to store these, esspecially private key
-        self.client_id = client_id
-        self.private_key = private_key
+        if client_id is not None and private_key is not None:
+            self.client_id = client_id
+            self.private_key = private_key
+        elif key_path is not None and Path(key_path).exists():
+            self.key_path = key_path
+        elif Path.joinpath(Path.home(), ".superfacility").exists():
+            if client_id is not None:
+                self.client_id = client_id
+                self.key_path = Path.joinpath(Path.home(), f".superfacility/{client_id}.pem")
+            else:
+                self.key_path = list(Path.joinpath(Path.home(), ".superfacility").glob("*.pem"))[0]
 
         # Create an access token in the __renew_toekn function
         self.access_token = None
@@ -48,32 +62,49 @@ class SuperfacilityAPI:
     def token(self):
         return self.access_token
 
+    def __check_file_and_open(self) -> str:
+        contents = None
+        if self.key_path.is_file():
+            with open(self.key_path.absolute()) as f:
+                contents = f.read()
+        return contents
+
     def __renew_token(self):
         # Create access token from client_id/private_key
         self.__token_time = datetime.now()
-        if self.client_id is not None and self.private_key is not None:
-            token_url = "https://oidc.nersc.gov/c2id/token"
-            session = OAuth2Session(
-                self.client_id,
-                self.private_key,
-                PrivateKeyJWT(token_url),
-                grant_type="client_credentials",
-                token_endpoint=token_url
-            )
-            # Get's the access token
-            try:
-                self.access_token = session.fetch_token()['access_token']
-            except OAuthError as e:
-                print(f"Oauth error {e}\nMake sure your api key is still active in iris.nersc.gov", file=sys.stderr)
-                exit(2)
-            # Builds the header with the access token for requests
-            self.headers = {'accept': 'application/json',
-                            'Content-Type': 'application/x-www-form-urlencoded',
-                            'Authorization': self.access_token}
+        self.headers = {'accept': 'application/json',
+                        'Content-Type': 'application/x-www-form-urlencoded'}
+
+        token_url = "https://oidc.nersc.gov/c2id/token"
+
+        if self.client_id is not None:
+            cid = self.client_id
         else:
-            # If no client_id/private_key given only status is useful
-            self.headers = {'accept': 'application/json',
-                            'Content-Type': 'application/x-www-form-urlencoded'}
+            cid = str(self.key_path).split("/")[-1][:-4]
+
+        if self.key_path is not None:
+            pkey = self.__check_file_and_open()
+        elif self.private_key is not None:
+            pkey = self.private_key
+        else:
+            # If no private key don't look for getting a token
+            return
+
+        session = OAuth2Session(
+            cid,
+            pkey,
+            PrivateKeyJWT(token_url),
+            grant_type="client_credentials",
+            token_endpoint=token_url
+        )
+        # Get's the access token
+        try:
+            self.access_token = session.fetch_token()['access_token']
+        except OAuthError as e:
+            print(f"Oauth error {e}\nMake sure your api key is still active in iris.nersc.gov", file=sys.stderr)
+            exit(2)
+        # Builds the header with the access token for requests
+        self.headers['Authorization'] = self.access_token
 
     def __generic_request(self, sub_url: str, header: Dict = None) -> Dict:
         """PRIVATE: Used to make a GET request to the api given a fully qualified sub url.
@@ -105,14 +136,14 @@ class SuperfacilityAPI:
             if status == 404:
                 print(warning_fourOfour.format(
                     self.base_url+sub_url), file=sys.stderr)
-                return None
+                return warning_fourOfour.format(self.base_url+sub_url)
 
             if self.access_token is None:
                 warning = no_client
             else:
                 warning = permissions_warning
             print(warning, file=sys.stderr)
-            return None
+            return warning
 
         json_resp = resp.json()
         return json_resp
@@ -392,7 +423,8 @@ class SuperfacilityAPI:
         resp = self.__generic_post(
             sub_url, data=f'job={script}&isPath={is_path}')
         logging.debug("Submitted new job, wating for responce.")
-
+        if resp == None:
+            return {'jobid': "post returned none"}
         # Waits (up to 10 seconds) for the job to be submited before returning
         for _ in range(10):
             task = self.tasks(resp['task_id'])

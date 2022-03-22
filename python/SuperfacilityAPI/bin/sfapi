@@ -36,18 +36,18 @@ def cli(ctx, clientid, private):
     # Basically an __init__ function that sets up the sfapi
     ctx.ensure_object(dict)
 
-    if private is not None:
-        private = check_file_and_open(private)
-    elif clientid is not None:
-        private = check_file_and_open(
-            f'{Path.home()}/.superfacility/{clientid}.pem')
-    else:
-        pem = glob(f'{Path.home()}/.superfacility/*.pem')
-        if len(pem) > 0:
-            clientid = pem[0].split("/")[-1][:-4]
-            private = check_file_and_open(pem[0])
+    # if private is not None:
+    #     private = check_file_and_open(private)
+    # elif clientid is not None:
+    #     private = check_file_and_open(
+    #         f'{Path.home()}/.superfacility/{clientid}.pem')
+    # else:
+    #     pem = glob(f'{Path.home()}/.superfacility/*.pem')
+    #     if len(pem) > 0:
+    #         clientid = pem[0].split("/")[-1][:-4]
+    #         private = check_file_and_open(pem[0])
 
-    sfapi = SuperfacilityAPI(clientid, private)
+    sfapi = SuperfacilityAPI(clientid)
 
     ctx.obj['sfapi'] = sfapi
 
