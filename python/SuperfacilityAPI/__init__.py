@@ -75,6 +75,11 @@ class SuperfacilityAPI:
         self.headers = {'accept': 'application/json',
                         'Content-Type': 'application/x-www-form-urlencoded'}
 
+        # We've already got the session just fetch a new token
+        if self.session is not None:
+            self.access_token = self.session.fetch_token()['access_token']
+            self.headers['Authorization'] = self.access_token
+
         token_url = "https://oidc.nersc.gov/c2id/token"
 
         if self.client_id is not None:
@@ -90,7 +95,7 @@ class SuperfacilityAPI:
             # If no private key don't look for getting a token
             return
 
-        session = OAuth2Session(
+        self.session = OAuth2Session(
             cid,
             pkey,
             PrivateKeyJWT(token_url),
@@ -99,7 +104,7 @@ class SuperfacilityAPI:
         )
         # Get's the access token
         try:
-            self.access_token = session.fetch_token()['access_token']
+            self.access_token = self.session.fetch_token()['access_token']
         except OAuthError as e:
             print(f"Oauth error {e}\nMake sure your api key is still active in iris.nersc.gov", file=sys.stderr)
             exit(2)
@@ -120,8 +125,8 @@ class SuperfacilityAPI:
         Dict
             Dictionary given by requests.Responce.json()
         """
-        # If key is older than 10 minutes renew
-        if self.access_token is not None and (datetime.now() - self.__token_time).seconds > (10*60):
+        # If key is older than 5 minutes renew
+        if self.access_token is not None and (datetime.now() - self.__token_time).seconds > (5*60):
             self.__renew_token()
 
         try:
@@ -162,8 +167,8 @@ class SuperfacilityAPI:
         Dict
             Dictionary given by requests.Responce.json()
         """
-        # If key is older than 10 minutes renew
-        if self.access_token is not None and (datetime.now() - self.__token_time).seconds > (10*60):
+        # If key is older than 5 minutes renew
+        if self.access_token is not None and (datetime.now() - self.__token_time).seconds > (5*60):
             self.__renew_token()
 
         try:
@@ -206,8 +211,8 @@ class SuperfacilityAPI:
         Dict
             Dictionary given by requests.Responce.json()
         """
-        # If key is older than 10 minutes renew
-        if self.access_token is not None and (datetime.now() - self.__token_time).seconds > (10*60):
+        # If key is older than 5 minutes renew
+        if self.access_token is not None and (datetime.now() - self.__token_time).seconds > (5*60):
             self.__renew_token()
 
         try:
