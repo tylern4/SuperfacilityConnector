@@ -20,6 +20,7 @@ class SuperfacilityAPI:
     client_id = None
     private_key = None
     key_path = None
+    session = None
 
     def __init__(self, client_id: str = None, private_key: str = None, key_path: str = None):
         """SuperfacilityAPI
