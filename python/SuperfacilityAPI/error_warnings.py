@@ -20,3 +20,15 @@ warning_fourOfour = """
 
 #############################
 """
+
+
+class FourOfourException(Exception):
+    pass
+
+
+class NoClientException(Exception):
+    pass
+
+
+class PermissionsException(Exception):
+    pass

@@ -1,6 +1,9 @@
 
 from typing import Dict, List
-from authlib.integrations.requests_client import OAuth2Session, OAuthError
+from authlib.integrations.requests_client import (
+    OAuth2Session,
+    OAuthError
+)
 from authlib.oauth2.rfc7523 import PrivateKeyJWT
 import requests
 import sys
@@ -11,9 +14,20 @@ import logging
 from pathlib import Path
 
 # Configurations in differnt files
-from .error_warnings import permissions_warning, warning_fourOfour, no_client
+from .error_warnings import (
+    permissions_warning,
+    warning_fourOfour,
+    no_client,
+    FourOfourException,
+    NoClientException,
+)
 from .api_version import API_VERSION
-from .nersc_systems import NERSC_DEFAULT_COMPUTE, nersc_systems, nersc_compute, nersc_filesystems
+from .nersc_systems import (
+    NERSC_DEFAULT_COMPUTE,
+    nersc_systems,
+    nersc_compute,
+    nersc_filesystems,
+)
 
 
 class SuperfacilityAPI:
@@ -79,7 +93,7 @@ class SuperfacilityAPI:
         # We've already got the session just fetch a new token
         if self.session is not None:
             self.access_token = self.session.fetch_token()['access_token']
-            self.headers['Authorization'] = self.access_token
+            self.headers['Authorization'] = f'Bearer {self.access_token}'
 
         token_url = "https://oidc.nersc.gov/c2id/token"
 
@@ -110,7 +124,7 @@ class SuperfacilityAPI:
             print(f"Oauth error {e}\nMake sure your api key is still active in iris.nersc.gov", file=sys.stderr)
             exit(2)
         # Builds the header with the access token for requests
-        self.headers['Authorization'] = self.access_token
+        self.headers['Authorization'] = f'Bearer {self.access_token}'
 
     def __generic_request(self, sub_url: str, header: Dict = None) -> Dict:
         """PRIVATE: Used to make a GET request to the api given a fully qualified sub url.
@@ -142,13 +156,15 @@ class SuperfacilityAPI:
             if status == 404:
                 print(warning_fourOfour.format(
                     self.base_url+sub_url), file=sys.stderr)
-                return warning_fourOfour.format(self.base_url+sub_url)
+                raise FourOfourException(f"404 not found {self.base_url+sub_url}")
 
             if self.access_token is None:
                 warning = no_client
+                print(warning, file=sys.stderr)
+                raise NoClientException("warning")
             else:
                 warning = permissions_warning
-            print(warning, file=sys.stderr)
+
             return warning
 
         json_resp = resp.json()
