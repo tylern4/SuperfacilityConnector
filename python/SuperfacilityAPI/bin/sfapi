@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 
+from os import access
 import sys
-from SuperfacilityAPI import SuperfacilityAPI
+from SuperfacilityAPI import (
+    SuperfacilityAPI,
+    SuperfacilityAccessToken
+)
 
 import click
 from pprint import pprint
@@ -30,25 +34,13 @@ def check_file_and_open(file_path: str = "") -> str:
 @click.group()
 @click.option('--clientid', default=None,
               help='Client ID for your key. Can be used to specify which key to look for in $HOME/.superfacility.')
-@click.option('--private', default=None, help='Full path to pem format private key.')
 @click.pass_context
-def cli(ctx, clientid, private):
+def cli(ctx, clientid):
     # Entrypoint for all the cli subcommands
     # Basically an __init__ function that sets up the sfapi
     ctx.ensure_object(dict)
-
-    # if private is not None:
-    #     private = check_file_and_open(private)
-    # elif clientid is not None:
-    #     private = check_file_and_open(
-    #         f'{Path.home()}/.superfacility/{clientid}.pem')
-    # else:
-    #     pem = glob(f'{Path.home()}/.superfacility/*.pem')
-    #     if len(pem) > 0:
-    #         clientid = pem[0].split("/")[-1][:-4]
-    #         private = check_file_and_open(pem[0])
-
-    sfapi = SuperfacilityAPI(clientid)
+    access_token = SuperfacilityAccessToken(client_id=clientid)
+    sfapi = SuperfacilityAPI(token=access_token.token)
 
     ctx.obj['sfapi'] = sfapi
 
@@ -175,15 +167,6 @@ def cat(ctx, site, path):
         print(ret['file'])
     except Exception as e:
         click.echo(e)
-
-
-# @cli.command()
-# @click.pass_context
-# def templates(ctx):
-#     sfapi = ctx.obj['sfapi']
-#     ret = sfapi.templates()
-
-#     print(ret)
 
 
 @cli.command()
