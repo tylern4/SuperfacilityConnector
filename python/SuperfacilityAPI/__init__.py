@@ -55,9 +55,11 @@ class SuperfacilityAccessToken:
         elif Path.joinpath(Path.home(), ".superfacility").exists():
             if client_id is not None:
                 self.client_id = client_id
-                self.key_path = Path.joinpath(Path.home(), f".superfacility/{client_id}.pem")
+                self.key_path = Path.joinpath(
+                    Path.home(), f".superfacility/{client_id}.pem")
             else:
-                self.key_path = list(Path.joinpath(Path.home(), ".superfacility").glob("*.pem"))[0]
+                self.key_path = list(Path.joinpath(
+                    Path.home(), ".superfacility").glob("*.pem"))[0]
 
         # Create an access token in the __renew_toekn function
         self.access_token = None
@@ -103,17 +105,18 @@ class SuperfacilityAccessToken:
             return
 
         self.session = OAuth2Session(
-            cid,
-            pkey,
-            PrivateKeyJWT(token_url),
+            cid,  # client_id
+            pkey,  # client_secret
+            PrivateKeyJWT(token_url),  # authorization_endpoint
             grant_type="client_credentials",
-            token_endpoint=token_url
+            token_endpoint=token_url  # token_endpoint
         )
         # Get's the access token
         try:
             self.access_token = self.session.fetch_token()['access_token']
         except OAuthError as e:
-            print(f"Oauth error {e}\nMake sure your api key is still active in iris.nersc.gov", file=sys.stderr)
+            print(
+                f"Oauth error {e}\nMake sure your api key is still active in iris.nersc.gov", file=sys.stderr)
             exit(2)
 
 
@@ -152,7 +155,6 @@ class SuperfacilityAPI:
         Dict
             Dictionary given by requests.Responce.json()
         """
-
         try:
             # Perform a get request
             resp = requests.get(
@@ -165,7 +167,8 @@ class SuperfacilityAPI:
             if status == 404:
                 print(warning_fourOfour.format(
                     self.base_url+sub_url), file=sys.stderr)
-                raise FourOfourException(f"404 not found {self.base_url+sub_url}")
+                raise FourOfourException(
+                    f"404 not found {self.base_url+sub_url}")
 
             if self.access_token is None:
                 warning = no_client
@@ -471,19 +474,22 @@ class SuperfacilityAPI:
 
         resp = self.__generic_post(
             sub_url, data=f'job={script}&isPath={is_path}')
+        task_id = resp['task_id']
         logging.debug("Submitted new job, wating for responce.")
         if resp == None:
             return {'jobid': "post returned none"}
         # Waits (up to 10 seconds) for the job to be submited before returning
         for _ in range(10):
-            task = self.tasks(resp['task_id'])
+            task = self.tasks(self.access_token, resp['task_id'])
             if task['status'] == 'completed':
                 return json.loads(task['result'])
             sleep(1)
 
         # Gives back error if something went wrong
-        task = self.tasks(resp['task_id'])
-        return json.loads(task['result'])
+        task = self.tasks(self.access_token, resp['task_id'])
+        ret = json.loads(task['result'])
+        ret['task_id'] = task_id
+        return ret
 
     def delete_job(self, token: str = None, site: str = NERSC_DEFAULT_COMPUTE, jobid: int = None) -> Dict:
         """Removes job from queue
