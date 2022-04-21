@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-from os import access
 import sys
 from SuperfacilityAPI import (
     SuperfacilityAPI,
@@ -10,17 +9,7 @@ from SuperfacilityAPI import (
 import click
 from pprint import pprint
 from pathlib import Path
-from glob import glob
 import json
-
-# try:
-#     import pandas as pd
-#     from tabulate import tabulate
-
-#     def mypprint(df): return mypprint(
-#         tabulate(df, headers='keys', tablefmt='fancy_grid', numalign="right", floatfmt="0.2f"))
-# except ImportError as e:
-#     def mypprint(df): return pprint(df)
 
 
 def mypprint(x):
@@ -118,19 +107,7 @@ def projects(ctx):
     sfapi = ctx.obj['sfapi']
 
     ret = sfapi.projects()
-    try:
-        df = pd.DataFrame(ret)
-
-        df['Hours Left [%]'] = 100 * \
-            (df['hours_given']-df['hours_used'])/df['hours_given']
-        df['Project Hours Left [%]'] = 100 * \
-            (df['project_hours_given']-df['project_hours_used']) / \
-            df['project_hours_given']
-        mypprint(
-            df[['repo_name', 'id', 'description', 'Hours Left [%]', 'Project Hours Left [%]']])
-
-    except Exception as e:
-        print(ret, file=sys.stderr)
+    mypprint(ret)
 
 
 @cli.command()
