@@ -74,9 +74,9 @@ class SuperfacilityAccessToken:
 
     @property
     def token(self):
-        # If key is older than 5 minutes renew
-        if self.access_token is not None and (datetime.now() - self.__token_time).seconds > (5*60):
-            self.__renew_token()
+        if self.session is not None:
+            print(f"Getting new token", file=sys.stderr)
+            self.access_token = self.session.fetch_token()['access_token']
 
         return self.access_token
 
@@ -104,7 +104,7 @@ class SuperfacilityAccessToken:
             pkey = self.private_key
         else:
             # If no private key don't look for getting a token
-            return
+            return None
 
         self.session = OAuth2Session(
             cid,  # client_id
@@ -119,7 +119,7 @@ class SuperfacilityAccessToken:
         except OAuthError as e:
             print(
                 f"Oauth error {e}\nMake sure your api key is still active in iris.nersc.gov", file=sys.stderr)
-            exit(2)
+            return None
 
 
 class SuperfacilityAPI:
