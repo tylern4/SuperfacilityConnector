@@ -121,6 +121,8 @@ class SuperfacilityAccessToken:
 
 
 class SuperfacilityAPI:
+    _status = None
+
     def __init__(self, token=None):
         """SuperfacilityAPI
 

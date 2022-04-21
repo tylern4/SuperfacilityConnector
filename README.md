@@ -7,13 +7,16 @@ Install with `pip install SuperfacilityConnector`.
 ### Functions without keys
 
 ```
-$ sfapi status cori
+$ sfapi status cori | jq
 
-╒════════╤═════════════╤══════════════════╤═══════════════╤═════════╤══════════╤═══════════════════════════╕
-│ name   │ full_name   │ description      │ system_type   │ notes   │ status   │ updated_at                │
-╞════════╪═════════════╪══════════════════╪═══════════════╪═════════╪══════════╪═══════════════════════════╡
-│ cori   │ Cori        │ System is active │ compute       │ []      │ active   │ 2021-12-17T13:00:00-08:00 │
-╘════════╧═════════════╧══════════════════╧═══════════════╧═════════╧══════════╧═══════════════════════════╛
+[
+  {
+    "full_name": "Cori",
+    "description": "System is active",
+    "status": "active",
+    "updated_at": "2022-04-14T23:03:00-07:00"
+  }
+]
 ```
 
 To get the status of all systems use.
@@ -54,7 +57,7 @@ Submit a job to a site, either with a file already on the system or with a file 
 
 ```
 sfapi sbatch SITE --path /path/at/nersc/slurm.sh 
-sfapi sbatch SITE --local /path/to/local/slurm.sh
+sfapi sbatch SITE --local slurm.sh
 ```
 
 View the queue, can view the full queue for a system or by specifc user or job.
