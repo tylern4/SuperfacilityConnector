@@ -41,4 +41,4 @@ jobs:
           python3 -m pip install -e .
       - name: Test
         run: |
-          sfapi status all
+          sfapi status compute
