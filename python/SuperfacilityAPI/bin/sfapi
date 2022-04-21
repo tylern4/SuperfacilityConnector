@@ -1,21 +1,39 @@
 #!/usr/bin/env python3
 
+from os import access
 import sys
-from SuperfacilityAPI import SuperfacilityAPI
+from SuperfacilityAPI import (
+    SuperfacilityAPI,
+    SuperfacilityAccessToken
+)
 
 import click
 from pprint import pprint
 from pathlib import Path
 from glob import glob
+import json
 
-try:
-    import pandas as pd
-    from tabulate import tabulate
+# try:
+#     import pandas as pd
+#     from tabulate import tabulate
 
-    def mypprint(df): return click.echo(
-        tabulate(df, headers='keys', tablefmt='fancy_grid', numalign="right", floatfmt="0.2f"))
-except ImportError as e:
-    def mypprint(df): return pprint(df)
+#     def mypprint(df): return mypprint(
+#         tabulate(df, headers='keys', tablefmt='fancy_grid', numalign="right", floatfmt="0.2f"))
+# except ImportError as e:
+#     def mypprint(df): return pprint(df)
+
+
+def mypprint(x):
+    if isinstance(x, str):
+        print(x)
+        return
+    else:
+        try:
+            print(json.dumps(x))
+        except Exception as e:
+            print(x)
+
+    return
 
 
 def check_file_and_open(file_path: str = "") -> str:
@@ -30,25 +48,13 @@ def check_file_and_open(file_path: str = "") -> str:
 @click.group()
 @click.option('--clientid', default=None,
               help='Client ID for your key. Can be used to specify which key to look for in $HOME/.superfacility.')
-@click.option('--private', default=None, help='Full path to pem format private key.')
 @click.pass_context
-def cli(ctx, clientid, private):
+def cli(ctx, clientid):
     # Entrypoint for all the cli subcommands
     # Basically an __init__ function that sets up the sfapi
     ctx.ensure_object(dict)
-
-    # if private is not None:
-    #     private = check_file_and_open(private)
-    # elif clientid is not None:
-    #     private = check_file_and_open(
-    #         f'{Path.home()}/.superfacility/{clientid}.pem')
-    # else:
-    #     pem = glob(f'{Path.home()}/.superfacility/*.pem')
-    #     if len(pem) > 0:
-    #         clientid = pem[0].split("/")[-1][:-4]
-    #         private = check_file_and_open(pem[0])
-
-    sfapi = SuperfacilityAPI(clientid)
+    access_token = SuperfacilityAccessToken(client_id=clientid)
+    sfapi = SuperfacilityAPI(token=access_token.token)
 
     ctx.obj['sfapi'] = sfapi
 
@@ -73,7 +79,8 @@ def status(ctx, site):
 
     ret = [oj for oj in ret if oj['description'] != 'Retired']
 
-    ret = [{k: oj[k] for k in ['full_name', 'description', 'status', 'updated_at']} for oj in ret]
+    ret = [{k: oj[k] for k in ['full_name', 'description',
+                               'status', 'updated_at']} for oj in ret]
 
     mypprint(ret)
 
@@ -82,7 +89,7 @@ def status(ctx, site):
 @click.pass_context
 def token(ctx):
     sfapi = ctx.obj['sfapi']
-    click.echo(sfapi.access_token)
+    mypprint(sfapi.access_token)
 
 
 @cli.command()
@@ -98,7 +105,8 @@ def roles(ctx):
     sfapi = ctx.obj['sfapi']
     ret = sfapi.roles()
     try:
-        ret = [{k: oj[k] for k in ['repo_name', 'id', 'iris_role', 'description']} for oj in ret]
+        ret = [{k: oj[k] for k in ['repo_name', 'id',
+                                   'iris_role', 'description']} for oj in ret]
         mypprint(ret)
     except Exception as e:
         print(ret, file=sys.stderr)
@@ -143,9 +151,9 @@ def sbatch(ctx, site, path, local):
 
     ret = sfapi.post_job(site=site, script=script, isPath=isPath)
     try:
-        click.echo(ret['jobid'])
+        mypprint(ret['jobid'])
     except Exception as e:
-        click.echo(e)
+        mypprint(e)
 
 
 @cli.command()
@@ -159,7 +167,7 @@ def ls(ctx, site, path):
     try:
         mypprint(ret['entries'])
     except Exception as e:
-        click.echo(e)
+        mypprint(e)
 
 
 @cli.command()
@@ -174,16 +182,7 @@ def cat(ctx, site, path):
     try:
         print(ret['file'])
     except Exception as e:
-        click.echo(e)
-
-
-# @cli.command()
-# @click.pass_context
-# def templates(ctx):
-#     sfapi = ctx.obj['sfapi']
-#     ret = sfapi.templates()
-
-#     print(ret)
+        mypprint(e)
 
 
 @cli.command()
@@ -197,7 +196,8 @@ def squeue(ctx, site, sacct, user, jobid):
 
     ret = sfapi.get_job(site=site, sacct=sacct, user=user, jobid=jobid)
 
-    cols = ['jobid', 'name',
+    cols = ['jobid',
+            'name',
             'account',
             'cpus',
             'features',
@@ -213,12 +213,12 @@ def squeue(ctx, site, sacct, user, jobid):
 
     try:
         if sacct:
-            click.echo(ret['output'])
+            mypprint(ret['output'])
         else:
             ret = [{k: oj[k] for k in cols} for oj in ret['output']]
             mypprint(ret)
     except Exception as e:
-        click.echo(f"Error {e}")
+        mypprint(f"Error {e}")
 
 
 @cli.command()
@@ -232,7 +232,7 @@ def scancel(ctx, site, jobid):
     try:
         pprint(ret)
     except Exception as e:
-        click.echo(e)
+        mypprint(e)
 
 
 if __name__ == '__main__':

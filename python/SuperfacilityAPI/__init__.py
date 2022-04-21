@@ -30,7 +30,7 @@ from .nersc_systems import (
 )
 
 
-class SuperfacilityAPI:
+class SuperfacilityAccessToken:
     client_id = None
     private_key = None
     key_path = None
@@ -46,11 +46,6 @@ class SuperfacilityAPI:
         private_key : str, optional
             Private key obtained from iris, by default None
         """
-        self.API_VERSION = API_VERSION
-        # Base url for sfapi requests
-        self.base_url = f'https://api.nersc.gov/api/v{self.API_VERSION}'
-        # self.base_url = f'https://api-dev.nersc.gov/api/v{self.API_VERSION}'
-
         # TODO: Check a better way to store these, esspecially private key
         if client_id is not None and private_key is not None:
             self.client_id = client_id
@@ -60,9 +55,11 @@ class SuperfacilityAPI:
         elif Path.joinpath(Path.home(), ".superfacility").exists():
             if client_id is not None:
                 self.client_id = client_id
-                self.key_path = Path.joinpath(Path.home(), f".superfacility/{client_id}.pem")
+                self.key_path = Path.joinpath(
+                    Path.home(), f".superfacility/{client_id}.pem")
             else:
-                self.key_path = list(Path.joinpath(Path.home(), ".superfacility").glob("*.pem"))[0]
+                self.key_path = list(Path.joinpath(
+                    Path.home(), ".superfacility").glob("*.pem"))[0]
 
         # Create an access token in the __renew_toekn function
         self.access_token = None
@@ -75,6 +72,10 @@ class SuperfacilityAPI:
 
     @property
     def token(self):
+        # If key is older than 5 minutes renew
+        if self.access_token is not None and (datetime.now() - self.__token_time).seconds > (5*60):
+            self.__renew_token()
+
         return self.access_token
 
     def __check_file_and_open(self) -> str:
@@ -87,13 +88,6 @@ class SuperfacilityAPI:
     def __renew_token(self):
         # Create access token from client_id/private_key
         self.__token_time = datetime.now()
-        self.headers = {'accept': 'application/json',
-                        'Content-Type': 'application/x-www-form-urlencoded'}
-
-        # We've already got the session just fetch a new token
-        if self.session is not None:
-            self.access_token = self.session.fetch_token()['access_token']
-            self.headers['Authorization'] = f'Bearer {self.access_token}'
 
         token_url = "https://oidc.nersc.gov/c2id/token"
 
@@ -111,20 +105,43 @@ class SuperfacilityAPI:
             return
 
         self.session = OAuth2Session(
-            cid,
-            pkey,
-            PrivateKeyJWT(token_url),
+            cid,  # client_id
+            pkey,  # client_secret
+            PrivateKeyJWT(token_url),  # authorization_endpoint
             grant_type="client_credentials",
-            token_endpoint=token_url
+            token_endpoint=token_url  # token_endpoint
         )
         # Get's the access token
         try:
             self.access_token = self.session.fetch_token()['access_token']
         except OAuthError as e:
-            print(f"Oauth error {e}\nMake sure your api key is still active in iris.nersc.gov", file=sys.stderr)
+            print(
+                f"Oauth error {e}\nMake sure your api key is still active in iris.nersc.gov", file=sys.stderr)
             exit(2)
-        # Builds the header with the access token for requests
-        self.headers['Authorization'] = f'Bearer {self.access_token}'
+
+
+class SuperfacilityAPI:
+    _status = None
+
+    def __init__(self, token=None):
+        """SuperfacilityAPI
+
+        Parameters
+        ----------
+        client_id : str, optional
+            Client ID obtained from iris, by default None
+        private_key : str, optional
+            Private key obtained from iris, by default None
+        """
+        self.API_VERSION = API_VERSION
+        # Base url for sfapi requests
+        self.base_url = f'https://api.nersc.gov/api/v{self.API_VERSION}'
+        self.headers = {'accept': 'application/json',
+                        'Content-Type': 'application/x-www-form-urlencoded'}
+
+        if isinstance(token, str):
+            self.access_token = token
+            self.headers['Authorization'] = f'Bearer {self.access_token}'
 
     def __generic_request(self, sub_url: str, header: Dict = None) -> Dict:
         """PRIVATE: Used to make a GET request to the api given a fully qualified sub url.
@@ -140,10 +157,6 @@ class SuperfacilityAPI:
         Dict
             Dictionary given by requests.Responce.json()
         """
-        # If key is older than 5 minutes renew
-        if self.access_token is not None and (datetime.now() - self.__token_time).seconds > (5*60):
-            self.__renew_token()
-
         try:
             # Perform a get request
             resp = requests.get(
@@ -156,7 +169,8 @@ class SuperfacilityAPI:
             if status == 404:
                 print(warning_fourOfour.format(
                     self.base_url+sub_url), file=sys.stderr)
-                raise FourOfourException(f"404 not found {self.base_url+sub_url}")
+                raise FourOfourException(
+                    f"404 not found {self.base_url+sub_url}")
 
             if self.access_token is None:
                 warning = no_client
@@ -184,9 +198,6 @@ class SuperfacilityAPI:
         Dict
             Dictionary given by requests.Responce.json()
         """
-        # If key is older than 5 minutes renew
-        if self.access_token is not None and (datetime.now() - self.__token_time).seconds > (5*60):
-            self.__renew_token()
 
         try:
             # Perform a get request
@@ -228,9 +239,6 @@ class SuperfacilityAPI:
         Dict
             Dictionary given by requests.Responce.json()
         """
-        # If key is older than 5 minutes renew
-        if self.access_token is not None and (datetime.now() - self.__token_time).seconds > (5*60):
-            self.__renew_token()
 
         try:
             # Perform a get request
@@ -314,7 +322,7 @@ class SuperfacilityAPI:
 
         return self.__generic_request(sub_url)
 
-    def ls(self, site: str = NERSC_DEFAULT_COMPUTE, remote_path: str = None) -> Dict:
+    def ls(self, token: str = None, site: str = NERSC_DEFAULT_COMPUTE, remote_path: str = None) -> Dict:
         """ls comand on a site
 
         Parameters
@@ -336,9 +344,13 @@ class SuperfacilityAPI:
 
         sub_url = f'{sub_url}/{site}/{path}'
 
+        if isinstance(token, str):
+            self.access_token = token
+            self.headers['Authorization'] = f'Bearer {self.access_token}'
+
         return self.__generic_request(sub_url)
 
-    def projects(self, repo_name: str = None) -> Dict:
+    def projects(self, token: str = None, repo_name: str = None) -> Dict:
         """Get information about your projects
 
         Parameters
@@ -355,9 +367,13 @@ class SuperfacilityAPI:
         if repo_name is not None:
             sub_url = f'/account/projects/{repo_name}/jobs'
 
+        if isinstance(token, str):
+            self.access_token = token
+            self.headers['Authorization'] = f'Bearer {self.access_token}'
+
         return self.__generic_request(sub_url)
 
-    def roles(self) -> Dict:
+    def roles(self, token: str = None) -> Dict:
         """Get roles for your account
 
         Returns
@@ -365,9 +381,13 @@ class SuperfacilityAPI:
         Dict
         """
         sub_url = '/account/roles'
+        if isinstance(token, str):
+            self.access_token = token
+            self.headers['Authorization'] = f'Bearer {self.access_token}'
+
         return self.__generic_request(sub_url)
 
-    def tasks(self, task_id: int = None) -> Dict:
+    def tasks(self, token: str = None, task_id: int = None) -> Dict:
         """Used to get SuperfacilityAPI tasks
 
         Parameters
@@ -382,9 +402,14 @@ class SuperfacilityAPI:
         sub_url = '/tasks'
         if task_id is not None:
             sub_url = f'{sub_url}/{task_id}'
+
+        if isinstance(token, str):
+            self.access_token = token
+            self.headers['Authorization'] = f'Bearer {self.access_token}'
+
         return self.__generic_request(sub_url)
 
-    def get_job(self, site: str = NERSC_DEFAULT_COMPUTE, sacct: bool = True,
+    def get_job(self, token: str = None, site: str = NERSC_DEFAULT_COMPUTE, sacct: bool = True,
                 jobid: int = None, user: int = None) -> Dict:
         """Used to get information about slurm jobs on a system
 
@@ -416,9 +441,13 @@ class SuperfacilityAPI:
         if user is not None:
             sub_url = f'{sub_url}&kwargs=user%3D{user}'
 
+        if isinstance(token, str):
+            self.access_token = token
+            self.headers['Authorization'] = f'Bearer {self.access_token}'
+
         return self.__generic_request(sub_url)
 
-    def post_job(self, site: str = NERSC_DEFAULT_COMPUTE, script: str = None, isPath: bool = True) -> int:
+    def post_job(self, token: str = None, site: str = NERSC_DEFAULT_COMPUTE, script: str = None, isPath: bool = True) -> int:
         """Adds a new job to the queue
 
         Parameters
@@ -441,24 +470,30 @@ class SuperfacilityAPI:
         script.replace("/", "%2F")
 
         is_path = 'true' if isPath else 'false'
+        if isinstance(token, str):
+            self.access_token = token
+            self.headers['Authorization'] = f'Bearer {self.access_token}'
 
         resp = self.__generic_post(
             sub_url, data=f'job={script}&isPath={is_path}')
+        task_id = resp['task_id']
         logging.debug("Submitted new job, wating for responce.")
         if resp == None:
             return {'jobid': "post returned none"}
         # Waits (up to 10 seconds) for the job to be submited before returning
         for _ in range(10):
-            task = self.tasks(resp['task_id'])
+            task = self.tasks(self.access_token, resp['task_id'])
             if task['status'] == 'completed':
                 return json.loads(task['result'])
             sleep(1)
 
         # Gives back error if something went wrong
-        task = self.tasks(resp['task_id'])
-        return json.loads(task['result'])
+        task = self.tasks(self.access_token, resp['task_id'])
+        ret = json.loads(task['result'])
+        ret['task_id'] = task_id
+        return ret
 
-    def delete_job(self, site: str = NERSC_DEFAULT_COMPUTE, jobid: int = None) -> Dict:
+    def delete_job(self, token: str = None, site: str = NERSC_DEFAULT_COMPUTE, jobid: int = None) -> Dict:
         """Removes job from queue
 
         Parameters
@@ -475,10 +510,14 @@ class SuperfacilityAPI:
         if site not in nersc_compute:
             return None
         sub_url = f'/compute/jobs/{site}/{jobid}'
+        if isinstance(token, str):
+            self.access_token = token
+            self.headers['Authorization'] = f'Bearer {self.access_token}'
+
         return self.__generic_delete(sub_url)
 
     ################## In Progress #######################
-    def download(self, site: str = NERSC_DEFAULT_COMPUTE, remote_path: str = None,
+    def download(self, token: str = None, site: str = NERSC_DEFAULT_COMPUTE, remote_path: str = None,
                  binary: bool = True, local_path: str = '.', save: bool = False) -> Dict:
 
         if site is None or remote_path is None:
@@ -496,6 +535,10 @@ class SuperfacilityAPI:
         if binary:
             sub_url = f'{sub_url}?binary=true'
 
+        if isinstance(token, str):
+            self.access_token = token
+            self.headers['Authorization'] = f'Bearer {self.access_token}'
+
         res = self.__generic_request(sub_url)
         if res is not None:
             if res['error'] is None:
@@ -508,20 +551,3 @@ class SuperfacilityAPI:
                     return res
         else:
             return False if save else None
-
-    # def groups(self) -> Dict:
-    #     """Get the groups for your accout
-
-    #     Returns
-    #     -------
-    #     Dict
-    #     """
-    #     sub_url = '/account/groups'
-    #     return self.__generic_request(sub_url)
-
-    # def upload(self):
-    #     return None
-
-    # def templates(self):
-    #     sub_url = '/templates'
-    #     return self.__generic_request(sub_url)
