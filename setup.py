@@ -21,7 +21,8 @@ with open(f"{_dir}/README.md") as f:
 
 
 if sys.version_info > (3, 7, 0):
-    install_requires = ['authlib', 'requests', 'click', 'tabulate', 'pandas', 'numpy']
+    install_requires = ['authlib', 'requests',
+                        'click', 'tabulate', 'pandas', 'numpy']
 else:
     print(sys.version_info)
     install_requires = ['authlib', 'requests', 'click']
@@ -37,7 +38,7 @@ setup(
     author_email="tylern@lbl.gov",
     packages=['SuperfacilityAPI'],
     package_dir={'': 'python'},
-    version='0.0.7',
+    version='0.1',
     scripts=['python/SuperfacilityAPI/bin/sfapi'],
     install_requires=install_requires,
     classifiers=[
