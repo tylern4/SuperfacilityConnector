@@ -1,4 +1,5 @@
 
+from dataclasses import dataclass
 from typing import Dict, List
 from authlib.integrations.requests_client import (
     OAuth2Session,
@@ -12,6 +13,7 @@ from datetime import datetime
 import json
 import logging
 from pathlib import Path
+import urllib.parse
 
 # Configurations in differnt files
 from .error_warnings import (
@@ -122,6 +124,7 @@ class SuperfacilityAccessToken:
 
 class SuperfacilityAPI:
     _status = None
+    access_token = None
 
     def __init__(self, token=None):
         """SuperfacilityAPI
@@ -184,7 +187,7 @@ class SuperfacilityAPI:
         json_resp = resp.json()
         return json_resp
 
-    def __generic_post(self, sub_url: str, header: Dict = None, data: str = None) -> Dict:
+    def __generic_post(self, sub_url: str, header: Dict = None, data: Dict = None) -> Dict:
         """PRIVATE: Used to make a POST request to the api given a fully qualified sub url.
 
 
@@ -204,7 +207,7 @@ class SuperfacilityAPI:
             resp = requests.post(
                 self.base_url+sub_url,
                 headers=self.headers if header is None else header,
-                data="" if data is None else data)
+                data="" if data is None else urllib.parse.urlencode(data))
             status = resp.status_code
             # Raise error based on reposnce status [200 OK] [500 err]
             resp.raise_for_status()
@@ -410,7 +413,7 @@ class SuperfacilityAPI:
         return self.__generic_request(sub_url)
 
     def get_job(self, token: str = None, site: str = NERSC_DEFAULT_COMPUTE, sacct: bool = True,
-                jobid: int = None, user: int = None) -> Dict:
+                jobid: int = None, user: str = None, partition: str = None) -> Dict:
         """Used to get information about slurm jobs on a system
 
         Parameters
@@ -440,6 +443,8 @@ class SuperfacilityAPI:
 
         if user is not None:
             sub_url = f'{sub_url}&kwargs=user%3D{user}'
+        elif partition is not None:
+            sub_url = f'{sub_url}&kwargs=partition%3D{partition}'
 
         if isinstance(token, str):
             self.access_token = token
@@ -474,8 +479,9 @@ class SuperfacilityAPI:
             self.access_token = token
             self.headers['Authorization'] = f'Bearer {self.access_token}'
 
+        data = {'job': script, 'isPath': is_path}
         resp = self.__generic_post(
-            sub_url, data=f'job={script}&isPath={is_path}')
+            sub_url, data=data)
         task_id = resp['task_id']
         logging.debug("Submitted new job, wating for responce.")
         if resp == None:
@@ -515,6 +521,48 @@ class SuperfacilityAPI:
             self.headers['Authorization'] = f'Bearer {self.access_token}'
 
         return self.__generic_delete(sub_url)
+
+    def custom_cmd(self, token: str = None, site: str = NERSC_DEFAULT_COMPUTE, cmd: str = None) -> Dict:
+        """Run custom command
+
+        Parameters
+        ----------
+        site : str, optional
+            Site to remove job from, by default NERSC_DEFAULT_COMPUTE
+        cmd: str,
+            Command to run
+
+        Returns
+        -------
+        Dict
+        """
+        if site not in nersc_compute:
+            return None
+        sub_url = f'/utilities/command/{site}'
+        if isinstance(token, str):
+            self.access_token = token
+            self.headers['Authorization'] = f'Bearer {self.access_token}'
+
+        data = {'executable': cmd}
+
+        resp = self.__generic_post(
+            sub_url, data=data)
+        task_id = resp['task_id']
+        logging.debug("Submitted new job, wating for responce.")
+        if resp == None:
+            return {'jobid': "post returned none"}
+        # Waits (up to 10 seconds) for the job to be submited before returning
+        for _ in range(10):
+            task = self.tasks(self.access_token, resp['task_id'])
+            if task['status'] == 'completed':
+                return json.loads(task['result'])
+            sleep(1)
+
+        # Gives back error if something went wrong
+        task = self.tasks(self.access_token, resp['task_id'])
+        ret = json.loads(task['result'])
+        ret['task_id'] = task_id
+        return ret
 
     ################## In Progress #######################
     def download(self, token: str = None, site: str = NERSC_DEFAULT_COMPUTE, remote_path: str = None,
