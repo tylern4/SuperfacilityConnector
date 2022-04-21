@@ -1,5 +1,5 @@
 
-from dataclasses import dataclass
+
 from typing import Dict, List
 from authlib.integrations.requests_client import (
     OAuth2Session,
