@@ -75,7 +75,6 @@ class SuperfacilityAccessToken:
     @property
     def token(self):
         if self.session is not None:
-            print(f"Getting new token", file=sys.stderr)
             self.access_token = self.session.fetch_token()['access_token']
 
         return self.access_token
