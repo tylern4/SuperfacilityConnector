@@ -38,7 +38,7 @@ setup(
     author_email="tylern@lbl.gov",
     packages=['SuperfacilityAPI'],
     package_dir={'': 'python'},
-    version='0.1.4',
+    version='0.1.5',
     scripts=['python/SuperfacilityAPI/bin/sfapi'],
     install_requires=install_requires,
     classifiers=[
