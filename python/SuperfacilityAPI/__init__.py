@@ -1,6 +1,7 @@
 
 
 from typing import Dict, List
+from async_timeout import timeout
 from authlib.integrations.requests_client import (
     OAuth2Session,
     OAuthError
@@ -451,7 +452,7 @@ class SuperfacilityAPI:
 
         return self.__generic_request(sub_url)
 
-    def post_job(self, token: str = None, site: str = NERSC_DEFAULT_COMPUTE, script: str = None, isPath: bool = True) -> int:
+    def post_job(self, token: str = None, site: str = NERSC_DEFAULT_COMPUTE, script: str = None, isPath: bool = True, timeout: int = 30) -> int:
         """Adds a new job to the queue
 
         Parameters
@@ -485,8 +486,8 @@ class SuperfacilityAPI:
         logging.debug("Submitted new job, wating for responce.")
         if resp == None:
             return {'jobid': "post returned none"}
-        # Waits (up to 10 seconds) for the job to be submited before returning
-        for _ in range(10):
+        # Waits (up to {timeout} seconds) for the job to be submited before returning
+        for _ in range(timeout):
             task = self.tasks(self.access_token, resp['task_id'])
             if task['status'] == 'completed':
                 return json.loads(task['result'])
@@ -521,7 +522,7 @@ class SuperfacilityAPI:
 
         return self.__generic_delete(sub_url)
 
-    def custom_cmd(self, token: str = None, site: str = NERSC_DEFAULT_COMPUTE, cmd: str = None) -> Dict:
+    def custom_cmd(self, token: str = None, site: str = NERSC_DEFAULT_COMPUTE, cmd: str = None, timeout: int = 30) -> Dict:
         """Run custom command
 
         Parameters
@@ -550,8 +551,8 @@ class SuperfacilityAPI:
         logging.debug("Submitted new job, wating for responce.")
         if resp == None:
             return {'jobid': "post returned none"}
-        # Waits (up to 10 seconds) for the job to be submited before returning
-        for _ in range(10):
+        # Waits (up to {timeout} seconds) for the job to be submited before returning
+        for _ in range(timeout):
             task = self.tasks(self.access_token, resp['task_id'])
             if task['status'] == 'completed':
                 return json.loads(task['result'])
