@@ -553,15 +553,19 @@ class SuperfacilityAPI:
         # Waits (up to {timeout} seconds) for the job to be submited before returning
         for _ in range(timeout):
             task = self.tasks(self.access_token, resp['task_id'])
-            if task['status'] == 'completed':
+            if isinstance(task, dict) and task['status'] == 'completed':
                 return json.loads(task['result'])
             sleep(1)
 
-        # Gives back error if something went wrong
-        task = self.tasks(self.access_token, resp['task_id'])
-        ret = json.loads(task['result'])
-        ret['task_id'] = task_id
-        return ret
+        try:
+            # Gives back error if something went wrong
+            task = self.tasks(self.access_token, resp['task_id'])
+            ret = json.loads(task['result'])
+            ret['task_id'] = task_id
+            return ret
+        except TypeError as e:
+            logging.error(f"{type(e).__name__} : {e}")
+            return {'jobid': f"{type(e).__name__} : {e}"}
 
     ################## In Progress #######################
     def download(self, token: str = None, site: str = NERSC_DEFAULT_COMPUTE, remote_path: str = None,
