@@ -1,7 +1,6 @@
 
 
 from typing import Dict, List
-from async_timeout import timeout
 from authlib.integrations.requests_client import (
     OAuth2Session,
     OAuthError
