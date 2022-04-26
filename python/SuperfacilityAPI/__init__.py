@@ -488,7 +488,8 @@ class SuperfacilityAPI:
         # Waits (up to {timeout} seconds) for the job to be submited before returning
         for _ in range(timeout):
             task = self.tasks(self.access_token, resp['task_id'])
-            if task['status'] == 'completed':
+            logging.debug(f"{task=}")
+            if task is not None and task['status'] == 'completed':
                 return json.loads(task['result'])
             sleep(1)
 
