@@ -544,12 +544,13 @@ class SuperfacilityAPI:
 
         data = {'executable': cmd}
 
-        resp = self.__generic_post(
-            sub_url, data=data)
-        task_id = resp['task_id']
+        resp = self.__generic_post(sub_url, data=data)
         logging.debug("Submitted new job, wating for responce.")
+        logging.debug(f"{resp}")
         if resp == None:
-            return {'jobid': "post returned none"}
+            return {'jobid': "post returned None"}
+
+        task_id = resp['task_id']
         # Waits (up to {timeout} seconds) for the job to be submited before returning
         for _ in range(timeout):
             task = self.tasks(self.access_token, resp['task_id'])
