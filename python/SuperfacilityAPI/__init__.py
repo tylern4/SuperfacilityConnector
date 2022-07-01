@@ -449,7 +449,10 @@ class SuperfacilityAPI:
 
         return self.__generic_request(sub_url)
 
-    def post_job(self, token: str = None, site: str = NERSC_DEFAULT_COMPUTE, script: str = None, isPath: bool = True, timeout: int = 30) -> int:
+    def post_job(self, token: str = None,
+                 site: str = NERSC_DEFAULT_COMPUTE,
+                 script: str = None, isPath: bool = True,
+                 run_async: bool = False, timeout: int = 30, sleeptime: int = 2) -> int:
         """Adds a new job to the queue
 
         Parameters
@@ -477,25 +480,29 @@ class SuperfacilityAPI:
             self.headers['Authorization'] = f'Bearer {self.access_token}'
 
         data = {'job': script, 'isPath': is_path}
-        resp = self.__generic_post(
-            sub_url, data=data)
-        task_id = resp['task_id']
+        resp = self.__generic_post(sub_url, data=data)
+
         logging.debug("Submitted new job, wating for responce.")
         if resp == None:
-            return {'jobid': "post returned none"}
+            return {'error': -1, 'jobid': None, 'task_id': None}
+        task_id = resp['task_id']
+        default = {'error': None, 'jobid': None, 'task_id': task_id}
+        if run_async:
+            return default
+
         # Waits (up to {timeout} seconds) for the job to be submited before returning
-        for _ in range(timeout):
+        for i in range(timeout):
+            if i > 0:
+                sleep(sleeptime)
+
+            logging.debug(f"Running {i}")
             task = self.tasks(self.access_token, resp['task_id'])
             logging.debug(f"task = {task}")
             if task is not None and task['status'] == 'completed':
-                return json.loads(task['result'])
-            sleep(1)
+                jobinfo = json.loads(task['result'])
+                return {'error': jobinfo['error'], 'jobid': jobinfo['jobid'], 'task_id': task_id}
 
-        # Gives back error if something went wrong
-        task = self.tasks(self.access_token, resp['task_id'])
-        ret = json.loads(task['result'])
-        ret['task_id'] = task_id
-        return ret
+        return default
 
     def delete_job(self, token: str = None, site: str = NERSC_DEFAULT_COMPUTE, jobid: int = None) -> Dict:
         """Removes job from queue
@@ -520,7 +527,9 @@ class SuperfacilityAPI:
 
         return self.__generic_delete(sub_url)
 
-    def custom_cmd(self, token: str = None, site: str = NERSC_DEFAULT_COMPUTE, cmd: str = None, timeout: int = 30) -> Dict:
+    def custom_cmd(self, token: str = None, run_async: bool = False,
+                   site: str = NERSC_DEFAULT_COMPUTE, cmd: str = None,
+                   timeout: int = 30, sleeptime: int = 2) -> Dict:
         """Run custom command
 
         Parameters
@@ -547,15 +556,22 @@ class SuperfacilityAPI:
         logging.debug("Submitted new job, wating for responce.")
         logging.debug(f"{resp}")
         if resp == None:
-            return {'jobid': "post returned None"}
+            return {'error': -1, 'task_id': None}
 
         task_id = resp['task_id']
+
+        # If we want the call async just return task_id
+        if run_async:
+            return {'error': None, 'task_id': task_id}
+
         # Waits (up to {timeout} seconds) for the job to be submited before returning
-        for _ in range(timeout):
+        for i in range(timeout):
+            if i > 0:
+                sleep(sleeptime)
             task = self.tasks(self.access_token, resp['task_id'])
             if isinstance(task, dict) and task['status'] == 'completed':
                 return json.loads(task['result'])
-            sleep(1)
+            sleep(sleeptime)
 
         try:
             # Gives back error if something went wrong

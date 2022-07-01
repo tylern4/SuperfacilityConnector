@@ -233,10 +233,7 @@ def scancel(ctx, site, jobid):
     sfapi = ctx.obj['sfapi']
 
     ret = sfapi.delete_job(site=site, jobid=jobid)
-    try:
-        pprint(ret)
-    except Exception as e:
-        mypprint(e)
+    mypprint(ret)
 
 
 if __name__ == '__main__':
