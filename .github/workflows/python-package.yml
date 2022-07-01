@@ -28,7 +28,7 @@ jobs:
           python --version
           python3 --version
           python3 -m pip install --upgrade pip
-          python3 -m pip install flake8 pytest
+          python3 -m pip install flake8 pytest coverage
       - name: Lint with flake8
         run: |
           # stop the build if there are Python syntax errors or undefined names
@@ -39,6 +39,10 @@ jobs:
         run: |
           # python3 setup.py develop
           python3 -m pip install -e .
+      - name: coverage
+        run: |
+          coverage -m pytest
+
       - name: Test
         run: |
           sfapi status compute
