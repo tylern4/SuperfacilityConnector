@@ -10,12 +10,23 @@ import click
 from pprint import pprint
 from pathlib import Path
 import json
+import logging
+
+try:
+    import tabulate
+except ImportError:
+    logging.warning("tabulate not installed falling back to json")
+
+tabprint = False
 
 
 def mypprint(x):
     if isinstance(x, str):
         print(x)
         return
+    elif tabprint:
+        printerly = {key: [i[key] for i in x] for key in x[0]}
+        print(tabulate.tabulate(printerly, headers=printerly.keys()))
     else:
         try:
             print(json.dumps(x))
@@ -37,11 +48,27 @@ def check_file_and_open(file_path: str = "") -> str:
 @click.group()
 @click.option('--clientid', default=None,
               help='Client ID for your key. Can be used to specify which key to look for in $HOME/.superfacility.')
+@click.option('--debug', is_flag=True, default=False, help='Print debug messages from sfapi and SuperfacilityConnector')
+@click.option('--pretty', is_flag=True, default=False, help='Print in table format.')
 @click.pass_context
-def cli(ctx, clientid):
+def cli(ctx, clientid, debug, pretty):
     # Entrypoint for all the cli subcommands
     # Basically an __init__ function that sets up the sfapi
     ctx.ensure_object(dict)
+    if debug:
+        logging.basicConfig(encoding='utf-8', level=logging.DEBUG)
+    else:
+        logging.basicConfig(encoding='utf-8', level=logging.WARNING)
+
+    global tabprint
+    if pretty:
+        try:
+            import tabulate
+            tabprint = True
+        except ImportError:
+            logging.warning("tabulate not installed falling back to json")
+            tabprint = False
+
     access_token = SuperfacilityAccessToken(client_id=clientid)
     sfapi = SuperfacilityAPI(token=access_token.token)
 
