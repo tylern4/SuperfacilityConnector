@@ -488,6 +488,8 @@ class SuperfacilityAPI:
         task_id = resp['task_id']
         default = {'error': None, 'jobid': None, 'task_id': task_id}
         if run_async:
+            logging.debug(task_id)
+            logging.debug(default)
             return default
 
         # Waits (up to {timeout} seconds) for the job to be submited before returning
