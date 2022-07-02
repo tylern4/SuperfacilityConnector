@@ -143,6 +143,17 @@ def projects(ctx):
 
 
 @cli.command()
+@click.option('--group', default=None, help='NERSC Group')
+@click.pass_context
+def group(ctx, group):
+    sfapi = ctx.obj['sfapi']
+
+    ret = sfapi.get_groups(groups=group)
+
+    mypprint(ret)
+
+
+@cli.command()
 @click.argument('site', default=None)
 @click.option('--path', default=None, help='Path to slurm submit file at NERSC.')
 @click.option('--local', default=None, help='Path to local file to submit.')

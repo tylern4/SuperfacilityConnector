@@ -261,7 +261,7 @@ class SuperfacilityAPI:
 
         return self.__generic_request(sub_url)
 
-    def projects(self, token: str = None, repo_name: str = None) -> Dict:
+    def projects(self, token: str = None) -> Dict:
         """Get information about your projects
 
         Parameters
@@ -275,14 +275,57 @@ class SuperfacilityAPI:
         """
 
         sub_url = '/account/projects'
-        if repo_name is not None:
-            sub_url = f'/account/projects/{repo_name}/jobs'
 
         if isinstance(token, str):
             self.access_token = token
             self.headers['Authorization'] = f'Bearer {self.access_token}'
 
         return self.__generic_request(sub_url)
+
+    def get_groups(self, token: str = None, groups: str = None) -> Dict:
+        """Get information about your groups
+
+        Parameters
+        ----------
+        repo_name : str, optional
+            Get information about a specific project, by default None
+
+        Returns
+        -------
+        Dict
+        """
+
+        sub_url = '/account/groups'
+        if groups is not None:
+            sub_url = f'/account/groups/{groups}'
+
+        if isinstance(token, str):
+            self.access_token = token
+            self.headers['Authorization'] = f'Bearer {self.access_token}'
+
+        return self.__generic_request(sub_url)
+
+    def create_groups(self, token: str = None, name: str = "", repo_name: str = ""):
+        """Create new groups
+
+        Parameters
+        ----------
+        repo_name : str, optional
+            Get information about a specific project, by default None
+
+        Returns
+        -------
+        Dict
+        """
+
+        sub_url = '/account/groups'
+
+        data = {"name": name, "repo_name": repo_name}
+        if isinstance(token, str):
+            self.access_token = token
+            self.headers['Authorization'] = f'Bearer {self.access_token}'
+
+        return self.__generic_post(sub_url, data=data)
 
     def roles(self, token: str = None) -> Dict:
         """Get roles for your account
