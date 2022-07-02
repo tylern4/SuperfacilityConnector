@@ -1,4 +1,5 @@
 module SuperfacilityConnector
+export status, status_outages, status_notes, status_planned
 
 using HTTP
 using JSON3
@@ -32,49 +33,32 @@ function make_delete(url::String)
     end
 end
 
+### 
 
-function status(name::String="", notes::Bool=false, outages::Bool=false)
+function status(name::String="")
     sub_url::String = "/status"
-
-    if name != ""
-        name = string("/", name)
-        sub_url = string(sub_url, name)
-    end
-
-    full_url::String = string(base_url, sub_url)
-    make_get(full_url)
+    return get_status(sub_url, name)
 end
 
 function status_planned(name::String="")
-    sub_url = "/status/outages/planned"
-
-    if name != ""
-        name = string("/", name)
-        sub_url = string(sub_url, name)
-    end
-
-    full_url::String = string(base_url, sub_url)
-    make_get(full_url)
+    sub_url::String = "/status/outages/planned"
+    return get_status(sub_url, name)
 end
 
 function status_outages(name::String="")
-    sub_url = "/status/outages"
-
-    if name != ""
-        name = string("/", name)
-        sub_url = string(sub_url, name)
-    end
-
-    full_url::String = string(base_url, sub_url)
-    make_get(full_url)
+    sub_url::String = "/status/outages"
+    return get_status(sub_url, name)
 end
 
 function status_notes(name::String="")
-    sub_url = "/status/notes"
+    sub_url::String = "/status/notes"
+    return get_status(sub_url, name)
+end
 
+function get_status(sub_url::String="/status", name::String="")
     if name != ""
         name = string("/", name)
-        sub_url = string(sub_url, name)
+        sub_url::String = string(sub_url, name)
     end
 
     full_url::String = string(base_url, sub_url)
