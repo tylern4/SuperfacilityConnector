@@ -68,7 +68,10 @@ class SuperfacilityAPI:
         Dict
             Dictionary given by requests.Responce.json()
         """
+        logging.info(f"__generic_request {sub_url}")
         try:
+            logging.info(
+                f"Sending {self.headers} to {self.base_url+sub_url}")
             # Perform a get request
             resp = requests.get(
                 self.base_url+sub_url, headers=self.headers if header is None else header)
@@ -77,6 +80,7 @@ class SuperfacilityAPI:
             resp.raise_for_status()
         except requests.exceptions.HTTPError as err:
             print(err, file=sys.stderr)
+            logging.error(f"{err}")
             if status == 404:
                 print(warning_fourOfour.format(
                     self.base_url+sub_url), file=sys.stderr)
@@ -85,6 +89,7 @@ class SuperfacilityAPI:
 
             if self.access_token is None:
                 warning = no_client
+                logging.error(f"{warning}")
                 print(warning, file=sys.stderr)
                 raise NoClientException("warning")
             else:
@@ -109,8 +114,10 @@ class SuperfacilityAPI:
         Dict
             Dictionary given by requests.Responce.json()
         """
-
+        logging.info(f"__generic_post {sub_url}")
         try:
+            logging.info(
+                f"Sending {self.headers} and {data} to {self.base_url+sub_url}")
             # Perform a get request
             resp = requests.post(
                 self.base_url+sub_url,
@@ -120,8 +127,11 @@ class SuperfacilityAPI:
             # Raise error based on reposnce status [200 OK] [500 err]
             resp.raise_for_status()
         except requests.exceptions.HTTPError as err:
+            logging.error(f"{err}")
             print(err, file=sys.stderr)
             if status == 404:
+                logging.warning(
+                    f"{warning_fourOfour.format(self.base_url+sub_url)}")
                 print(warning_fourOfour.format(
                     self.base_url+sub_url), file=sys.stderr)
                 return None
@@ -130,6 +140,7 @@ class SuperfacilityAPI:
                 warning = no_client
             else:
                 warning = permissions_warning
+            logging.warning(f"{warning}")
             print(warning, file=sys.stderr)
             return None
 
@@ -150,7 +161,7 @@ class SuperfacilityAPI:
         Dict
             Dictionary given by requests.Responce.json()
         """
-
+        logging.info(f"__generic_delete {sub_url}")
         try:
             # Perform a get request
             resp = requests.delete(
@@ -477,6 +488,7 @@ class SuperfacilityAPI:
         if site not in nersc_compute:
             return None
         sub_url = f'/compute/jobs/{site}/{jobid}'
+        logging.info(f"Calling {sub_url}")
         if isinstance(token, str):
             self.access_token = token
             self.headers['Authorization'] = f'Bearer {self.access_token}'

@@ -1,4 +1,4 @@
-NERSC_DEFAULT_COMPUTE = 'cori'
+NERSC_DEFAULT_COMPUTE = 'perlmutter'
 
 nersc_systems = ['perlmutter', 'cori', 'dna', 'dtns', 'global_homes', 'projectb', 'global_common',
                  'community_filesystem', 'matlab', 'jupyter', 'nersc_center', 'helpportal', 'website',

@@ -11,7 +11,8 @@ function make_get(url::String)
         response = HTTP.get(url)
         return JSON3.read_json_str(String(response.body))
     catch e
-        return "Error occurred : $e"
+        print("Error occurred : $e")
+        JSON3.read_json_str(String(response.body))
     end
 end
 
@@ -20,7 +21,8 @@ function make_post(url::String)
         response = HTTP.post(url)
         return JSON3.read_json_str(String(response.body))
     catch e
-        return "Error occurred : $e"
+        print("Error occurred : $e")
+        JSON3.read_json_str(String(response.body))
     end
 end
 
@@ -29,7 +31,8 @@ function make_delete(url::String)
         response = HTTP.post(url)
         return JSON3.read_json_str(String(response.body))
     catch e
-        return "Error occurred : $e"
+        print("Error occurred : $e")
+        JSON3.read_json_str(String(response.body))
     end
 end
 
@@ -61,6 +64,12 @@ function get_status(sub_url::String="/status", name::String="")
         sub_url::String = string(sub_url, name)
     end
 
+    full_url::String = string(base_url, sub_url)
+    make_get(full_url)
+end
+
+function get_projects(sub_url::String="/account/projects", name::String="")
+    println(string(base_url, sub_url))
     full_url::String = string(base_url, sub_url)
     make_get(full_url)
 end

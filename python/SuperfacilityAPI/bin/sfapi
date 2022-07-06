@@ -6,6 +6,7 @@ from SuperfacilityAPI import (
     SuperfacilityAPI,
     SuperfacilityAccessToken
 )
+from SuperfacilityAPI.nersc_systems import NERSC_DEFAULT_COMPUTE
 
 import click
 from pprint import pprint
@@ -81,7 +82,7 @@ def cli(ctx, clientid, debug, pretty, sync):
 
 
 @cli.command()
-@click.argument('site', default=None)
+@click.argument('site', default=NERSC_DEFAULT_COMPUTE)
 @click.pass_context
 def status(ctx, site):
     sfapi = ctx.obj['sfapi']
@@ -154,7 +155,7 @@ def group(ctx, group):
 
 
 @cli.command()
-@click.argument('site', default=None)
+@click.argument('site', default=NERSC_DEFAULT_COMPUTE)
 @click.option('--path', default=None, help='Path to slurm submit file at NERSC.')
 @click.option('--local', default=None, help='Path to local file to submit.')
 @click.pass_context
@@ -181,7 +182,7 @@ def sbatch(ctx, site, path, local):
 
 
 @cli.command()
-@click.argument('site', default=None)
+@click.argument('site', default=NERSC_DEFAULT_COMPUTE)
 @click.option('--path', default=None, help='Path to slurm submit file at NERSC.')
 @click.pass_context
 def ls(ctx, site, path):
@@ -195,7 +196,7 @@ def ls(ctx, site, path):
 
 
 @cli.command()
-@click.argument('site', default=None)
+@click.argument('site', default=NERSC_DEFAULT_COMPUTE)
 @click.option('--path', default=None, help='Path to slurm submit file at NERSC.')
 @click.pass_context
 def cat(ctx, site, path):
@@ -210,7 +211,7 @@ def cat(ctx, site, path):
 
 
 @cli.command()
-@click.argument('site', default=None)
+@click.argument('site', default=NERSC_DEFAULT_COMPUTE)
 @click.option('--sacct/--no-sacct', default=False)
 @click.option('--user', default=None, help='User to to get queue info for.')
 @click.option('--jobid', default=None, help='Specific jobid to get queue info for.')
@@ -246,21 +247,21 @@ def squeue(ctx, site, sacct, user, jobid):
 
 
 @cli.command()
-@click.argument('site', default=None)
-@click.option('--jobid', default=None, help='Specific jobid to get queue info for.')
+@click.argument('jobid', default=NERSC_DEFAULT_COMPUTE)
+@click.argument('site', default=NERSC_DEFAULT_COMPUTE)
 @click.pass_context
 def scancel(ctx, site, jobid):
     sfapi = ctx.obj['sfapi']
+    logging.info(f"Running delete on {jobid}@{site}")
 
     ret = sfapi.delete_job(site=site, jobid=jobid)
     mypprint(ret)
 
 
 @cli.command()
-@click.argument('site', default=None)
-@click.option('--taskid', default=None, help='Sfapi task id to info for.')
+@click.argument('taskid', default=NERSC_DEFAULT_COMPUTE)
 @click.pass_context
-def task(ctx, site, taskid):
+def task(ctx, taskid):
     sfapi = ctx.obj['sfapi']
     # Waits (up to {timeout} seconds) for the job to be submited before returning
     timeout = 40
