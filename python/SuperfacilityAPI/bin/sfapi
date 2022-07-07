@@ -20,7 +20,7 @@ except ImportError:
     logging.warning("tabulate not installed falling back to json")
 
 tabprint = False
-runasync = True
+runasync = False
 
 
 def mypprint(x):

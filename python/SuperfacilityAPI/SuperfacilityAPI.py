@@ -68,9 +68,9 @@ class SuperfacilityAPI:
         Dict
             Dictionary given by requests.Responce.json()
         """
-        logging.info(f"__generic_request {sub_url}")
+        logging.debug(f"__generic_request {sub_url}")
         try:
-            logging.info(
+            logging.debug(
                 f"Sending {self.headers} to {self.base_url+sub_url}")
             # Perform a get request
             resp = requests.get(
@@ -114,9 +114,9 @@ class SuperfacilityAPI:
         Dict
             Dictionary given by requests.Responce.json()
         """
-        logging.info(f"__generic_post {sub_url}")
+        logging.debug(f"__generic_post {sub_url}")
         try:
-            logging.info(
+            logging.debug(
                 f"Sending {self.headers} and {data} to {self.base_url+sub_url}")
             # Perform a get request
             resp = requests.post(
@@ -161,7 +161,7 @@ class SuperfacilityAPI:
         Dict
             Dictionary given by requests.Responce.json()
         """
-        logging.info(f"__generic_delete {sub_url}")
+        logging.debug(f"__generic_delete {sub_url}")
         try:
             # Perform a get request
             resp = requests.delete(
@@ -488,7 +488,7 @@ class SuperfacilityAPI:
         if site not in nersc_compute:
             return None
         sub_url = f'/compute/jobs/{site}/{jobid}'
-        logging.info(f"Calling {sub_url}")
+        logging.debug(f"Calling {sub_url}")
         if isinstance(token, str):
             self.access_token = token
             self.headers['Authorization'] = f'Bearer {self.access_token}'
