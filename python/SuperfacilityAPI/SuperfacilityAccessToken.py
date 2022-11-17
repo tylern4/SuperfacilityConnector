@@ -1,4 +1,3 @@
-
 from authlib.integrations.requests_client import (
     OAuth2Session,
     OAuthError
@@ -7,6 +6,25 @@ from authlib.oauth2.rfc7523 import PrivateKeyJWT
 import sys
 from datetime import datetime
 from pathlib import Path
+import requests
+import getpass
+import json
+import os
+
+
+iris_instructions = """
+Go to https://iris.nersc.gov
+
+Click `Profile`
+
+Scroll to `Superfacility API Clients`
+
+`+ New Client`
+
+Copy the private key.
+
+Your current IP address is {}
+"""
 
 
 class SuperfacilityAccessToken:
@@ -15,7 +33,10 @@ class SuperfacilityAccessToken:
     key_path = None
     session = None
 
-    def __init__(self, client_id: str = None, private_key: str = None, key_path: str = None):
+    def __init__(self, name: str = None,
+                 client_id: str = None,
+                 private_key: str = None,
+                 key_path: str = None):
         """SuperfacilityAPI
 
         Parameters
@@ -32,7 +53,10 @@ class SuperfacilityAccessToken:
         elif key_path is not None and Path(key_path).exists():
             self.key_path = key_path
         elif Path.joinpath(Path.home(), ".superfacility").exists():
-            if client_id is not None:
+            if name is not None:
+                self.key_path = list(Path.joinpath(
+                    Path.home(), ".superfacility").glob(f"{name}*.pem"))[0]
+            elif client_id is not None:
                 self.client_id = client_id
                 self.key_path = Path.joinpath(
                     Path.home(), f".superfacility/{client_id}.pem")
@@ -48,6 +72,23 @@ class SuperfacilityAccessToken:
         # If status is called later it will be stored here
         # for faster calls later
         self._status = None
+
+    @staticmethod
+    def save_token(key_format: str = 'json', tag: str = "sfapi"):
+        sfdir = Path.joinpath(Path.home(), ".superfacility")
+        sfdir.mkdir(exist_ok=True)
+
+        ipadder = requests.get("https://ifconfig.io/ip")
+        print(iris_instructions.format(ipadder.text))
+
+        client_id = input("Enter client id: ")
+        key_name = sfdir / f"{tag}-{client_id}.pem"
+        editor = os.getenv("EDITOR", "vim")
+        os.system(f'{editor} {key_name}')
+        try:
+            key_name.chmod(0o600)
+        except FileNotFoundError:
+            print("No key info entered")
 
     @property
     def token(self):
@@ -72,7 +113,7 @@ class SuperfacilityAccessToken:
         if self.client_id is not None:
             cid = self.client_id
         else:
-            cid = str(self.key_path).split("/")[-1][:-4]
+            cid = self.key_path.stem.split('-')[-1]
 
         if self.key_path is not None:
             pkey = self.__check_file_and_open()
@@ -89,6 +130,7 @@ class SuperfacilityAccessToken:
             grant_type="client_credentials",
             token_endpoint=token_url  # token_endpoint
         )
+
         # Get's the access token
         try:
             self.access_token = self.session.fetch_token()['access_token']

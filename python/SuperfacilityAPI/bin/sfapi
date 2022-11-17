@@ -51,11 +51,13 @@ def check_file_and_open(file_path: str = "") -> str:
 @click.group()
 @click.option('--clientid', default=None,
               help='Client ID for your key. Can be used to specify which key to look for in $HOME/.superfacility.')
+@click.option('--name', default=None,
+              help='Client ID for your key. Can be used to specify which key to look for in $HOME/.superfacility.')
 @click.option('--debug', is_flag=True, default=False, help='Print debug messages from sfapi and SuperfacilityConnector')
 @click.option('--pretty', is_flag=True, default=False, help='Print in table format.')
 @click.option('--sync', is_flag=True, default=False, help='Run async')
 @click.pass_context
-def cli(ctx, clientid, debug, pretty, sync):
+def cli(ctx, name, clientid, debug, pretty, sync):
     # Entrypoint for all the cli subcommands
     # Basically an __init__ function that sets up the sfapi
     ctx.ensure_object(dict)
@@ -75,7 +77,7 @@ def cli(ctx, clientid, debug, pretty, sync):
     if sync:
         runasync = True
 
-    access_token = SuperfacilityAccessToken(client_id=clientid)
+    access_token = SuperfacilityAccessToken(name=name, client_id=clientid)
     sfapi = SuperfacilityAPI(token=access_token.token)
 
     ctx.obj['sfapi'] = sfapi
@@ -247,7 +249,7 @@ def squeue(ctx, site, sacct, user, jobid):
 
 
 @cli.command()
-@click.argument('jobid', default=NERSC_DEFAULT_COMPUTE)
+@click.argument('jobid')
 @click.argument('site', default=NERSC_DEFAULT_COMPUTE)
 @click.pass_context
 def scancel(ctx, site, jobid):
@@ -259,7 +261,7 @@ def scancel(ctx, site, jobid):
 
 
 @cli.command()
-@click.argument('taskid', default=NERSC_DEFAULT_COMPUTE)
+@click.argument('taskid')
 @click.pass_context
 def task(ctx, taskid):
     sfapi = ctx.obj['sfapi']
@@ -279,6 +281,12 @@ def task(ctx, taskid):
             print(
                 {'error': jobinfo['error'], 'jobid': jobinfo['jobid'], 'task_id': taskid})
             return
+
+
+@cli.command()
+@click.option('--name', default="sfpai", help='Name the sfapi json file')
+def manage_keys(name):
+    SuperfacilityAccessToken.save_token(key_format='json', tag=name)
 
 
 if __name__ == '__main__':
