@@ -7,8 +7,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 import requests
-import getpass
-import json
+import logging
 import os
 
 
@@ -135,6 +134,6 @@ class SuperfacilityAccessToken:
         try:
             self.access_token = self.session.fetch_token()['access_token']
         except OAuthError as e:
-            print(
-                f"Oauth error {e}\nMake sure your api key is still active in iris.nersc.gov", file=sys.stderr)
+            logging.debug(
+                f"Oauth error {e}\nMake sure your api key is still active in iris.nersc.gov")
             return None

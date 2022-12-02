@@ -78,7 +78,10 @@ def cli(ctx, name, clientid, debug, pretty, sync):
         runasync = True
 
     access_token = SuperfacilityAccessToken(name=name, client_id=clientid)
-    sfapi = SuperfacilityAPI(token=access_token.token)
+    try:
+        sfapi = SuperfacilityAPI(token=access_token.token)
+    except:
+        sfapi = SuperfacilityAPI()
 
     ctx.obj['sfapi'] = sfapi
 
