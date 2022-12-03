@@ -224,7 +224,7 @@ def cat(ctx, site, path):
 def squeue(ctx, site, sacct, user, jobid):
     sfapi = ctx.obj['sfapi']
 
-    ret = sfapi.get_job(site=site, sacct=sacct, user=user, jobid=jobid)
+    ret = sfapi.get_jobs(site=site, sacct=sacct, user=user, jobid=jobid)
 
     cols = ['jobid',
             'name',

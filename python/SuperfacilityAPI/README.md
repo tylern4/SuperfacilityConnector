@@ -32,7 +32,7 @@ Dict
 
 ```
 
-### get_job
+### get_jobs
 ```
 
 Used to get information about slurm jobs on a system

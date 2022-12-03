@@ -71,7 +71,7 @@ class SuperfacilityAPI:
         logging.debug(f"__generic_request {sub_url}")
         try:
             logging.debug(
-                f"Sending {self.headers} to {self.base_url+sub_url}")
+                f"Sending {self.base_url+sub_url}")
             # Perform a get request
             resp = requests.get(
                 self.base_url+sub_url, headers=self.headers if header is None else header)
@@ -117,7 +117,7 @@ class SuperfacilityAPI:
         logging.debug(f"__generic_post {sub_url}")
         try:
             logging.debug(
-                f"Sending {self.headers} and {data} to {self.base_url+sub_url}")
+                f"Sending {data} to {self.base_url+sub_url}")
             # Perform a get request
             resp = requests.post(
                 self.base_url+sub_url,
@@ -374,8 +374,8 @@ class SuperfacilityAPI:
 
         return self.__generic_request(sub_url)
 
-    def get_job(self, token: str = None, site: str = NERSC_DEFAULT_COMPUTE, sacct: bool = True,
-                jobid: int = None, user: str = None, partition: str = None) -> Dict:
+    def get_jobs(self, token: str = None, site: str = NERSC_DEFAULT_COMPUTE, sacct: bool = True,
+                 jobid: int = None, user: str = None, partition: str = None) -> Dict:
         """Used to get information about slurm jobs on a system
 
         Parameters
