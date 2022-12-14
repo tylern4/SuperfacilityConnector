@@ -29,6 +29,19 @@ from .nersc_systems import (
     nersc_filesystems,
 )
 
+from enum import Flag, auto
+
+
+class NerscSystemState(Flag):
+    ACTIVE = auto()
+    DOWN = auto()
+    DEGRADED = auto()
+    MAINTNAINCE = auto()
+    UNKNOWN = auto()
+
+    def __str__(self):
+        return f'{self.name.lower()}'
+
 
 class SuperfacilityAPI:
     _status = None
@@ -244,6 +257,35 @@ class SuperfacilityAPI:
 
         return self.__generic_request(sub_url)
 
+    def system_status(self, name: str = "perlmutter"):
+        state = NerscSystemState.UNKNOWN
+        sub_url = f'/status/{name}'
+        data = self.__generic_request(sub_url)
+
+        if not isinstance(data, dict):
+            return state
+
+        if data['status'] == 'active':
+            state = NerscSystemState.ACTIVE
+            if data['description'] == "System Degraded":
+                state = NerscSystemState.DEGRADED
+        else:
+            state = NerscSystemState.DOWN
+            if data['description'] == "Scheduled Maintenance":
+                state = NerscSystemState.MAINTNAINCE
+
+        return state
+
+    def check_status(self, name: str = "perlmutter"):
+
+        current_status = self.system_status()
+        down = NerscSystemState.DOWN | NerscSystemState.MAINTNAINCE | NerscSystemState.UNKNOWN
+        if current_status is down:
+            logging.debug(f"{name} is {current_status}")
+            return False
+
+        return True
+
     def ls(self, token: str = None, site: str = NERSC_DEFAULT_COMPUTE, remote_path: str = None) -> Dict:
         """ls comand on a site
 
@@ -434,42 +476,54 @@ class SuperfacilityAPI:
         int
             slurm jobid
         """
-        if site not in nersc_compute:
-            return None
-        sub_url = f'/compute/jobs/{site}'
-        script.replace("/", "%2F")
 
-        is_path = 'true' if isPath else 'false'
+        job_info = {'error': None, 'jobid': None, 'task_id': None}
+        if site not in nersc_compute:
+            job_info['error'] = 'not a compute site'
+            return job_info
+
+        if not self.check_status():
+            job_info['error'] = f'{site} is down {self.system_status(name=site)}'
+            return job_info
+
         if isinstance(token, str):
             self.access_token = token
             self.headers['Authorization'] = f'Bearer {self.access_token}'
 
+        sub_url = f'/compute/jobs/{site}'
+        script.replace("/", "%2F")
+        is_path = 'true' if isPath else 'false'
         data = {'job': script, 'isPath': is_path}
         resp = self.__generic_post(sub_url, data=data)
 
         logging.debug("Submitted new job, wating for responce.")
         if resp == None:
             return {'error': -1, 'jobid': None, 'task_id': None}
+
         task_id = resp['task_id']
-        default = {'error': None, 'jobid': None, 'task_id': task_id}
+        job_info['task_id'] = task_id
         if run_async:
             logging.debug(task_id)
-            logging.debug(default)
-            return default
+            logging.debug(job_info)
+            return job_info
 
         # Waits (up to {timeout} seconds) for the job to be submited before returning
         for i in range(timeout):
             if i > 0:
                 sleep(sleeptime)
 
-            logging.debug(f"Running {i}")
+            logging.debug(f"Checking {i} ...")
             task = self.tasks(self.access_token, resp['task_id'])
             logging.debug(f"task = {task}")
             if task is not None and task['status'] == 'completed':
                 jobinfo = json.loads(task['result'])
-                return {'error': jobinfo['error'], 'jobid': jobinfo['jobid'], 'task_id': task_id}
+                return {
+                    'error': jobinfo['error'],
+                    'jobid': jobinfo['jobid'],
+                    'task_id': task_id
+                }
 
-        return default
+        return job_info
 
     def delete_job(self, token: str = None, site: str = NERSC_DEFAULT_COMPUTE, jobid: int = None) -> Dict:
         """Removes job from queue
@@ -487,6 +541,14 @@ class SuperfacilityAPI:
         """
         if site not in nersc_compute:
             return None
+
+        down = NerscSystemState.DOWN | NerscSystemState.MAINTNAINCE | NerscSystemState.UNKNOWN
+        current_status = self.system_status()
+        if current_status is down:
+            logging.debug(
+                f"System is {current_status}, job cannot be submitted")
+            return None
+
         sub_url = f'/compute/jobs/{site}/{jobid}'
         logging.debug(f"Calling {sub_url}")
         if isinstance(token, str):

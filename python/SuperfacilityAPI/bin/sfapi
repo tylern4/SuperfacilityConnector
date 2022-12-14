@@ -113,6 +113,17 @@ def status(ctx, site):
 
 
 @cli.command()
+@click.argument('site', default=NERSC_DEFAULT_COMPUTE)
+@click.pass_context
+def system_status(ctx, site):
+    sfapi = ctx.obj['sfapi']
+    status_code = sfapi.system_status(name=site)
+
+    output = f"{site}@NERSC is currently {status_code}"
+    click.echo(output)
+
+
+@cli.command()
 @click.pass_context
 def token(ctx):
     sfapi = ctx.obj['sfapi']
