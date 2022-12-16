@@ -22,13 +22,29 @@ warning_fourOfour = """
 """
 
 
-class FourOfourException(Exception):
+class SuperfacilityError(Exception):
     pass
 
 
-class NoClientException(Exception):
+class FourOfourException(SuperfacilityError):
     pass
 
 
-class PermissionsException(Exception):
+class InternalServerError(SuperfacilityError):
+    pass
+
+
+class NoClientException(SuperfacilityError):
+    pass
+
+
+class PermissionsException(SuperfacilityError):
+    pass
+
+
+class SuperfacilityCmdFailed(SuperfacilityError):
+    pass
+
+
+class SuperfacilitySiteDown(SuperfacilityError):
     pass

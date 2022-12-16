@@ -19,7 +19,10 @@ from .error_warnings import (
     warning_fourOfour,
     no_client,
     FourOfourException,
+    InternalServerError,
     NoClientException,
+    SuperfacilityCmdFailed,
+    SuperfacilitySiteDown
 )
 from .api_version import API_VERSION
 from .nersc_systems import (
@@ -67,7 +70,7 @@ class SuperfacilityAPI:
             self.access_token = token
             self.headers['Authorization'] = f'Bearer {self.access_token}'
 
-    def __generic_request(self, sub_url: str, header: Dict = None) -> Dict:
+    def __generic_get(self, sub_url: str, header: Dict = None) -> Dict:
         """PRIVATE: Used to make a GET request to the api given a fully qualified sub url.
 
 
@@ -81,36 +84,29 @@ class SuperfacilityAPI:
         Dict
             Dictionary given by requests.Responce.json()
         """
-        logging.debug(f"__generic_request {sub_url}")
+        logging.debug(f"__generic_get {sub_url}")
         try:
             logging.debug(
-                f"Sending {self.base_url+sub_url}")
+                f"Getting from {self.base_url+sub_url}")
             # Perform a get request
             resp = requests.get(
                 self.base_url+sub_url, headers=self.headers if header is None else header)
             status = resp.status_code
             # Raise error based on reposnce status [200 OK] [500 err]
             resp.raise_for_status()
+            json_resp = resp.json()
         except requests.exceptions.HTTPError as err:
-            print(err, file=sys.stderr)
-            logging.error(f"{err}")
             if status == 404:
-                print(warning_fourOfour.format(
-                    self.base_url+sub_url), file=sys.stderr)
+                logging.warning(warning_fourOfour.format(
+                    self.base_url+sub_url))
                 raise FourOfourException(
                     f"404 not found {self.base_url+sub_url}")
+            elif status == 500:
+                logging.warning(f"500 Internal Server Error")
+                raise InternalServerError(f"500 Internal Server Error")
+        except requests.exceptions.TooManyRedirects:
+            json_resp = {}
 
-            if self.access_token is None:
-                warning = no_client
-                logging.error(f"{warning}")
-                print(warning, file=sys.stderr)
-                raise NoClientException("warning")
-            else:
-                warning = permissions_warning
-
-            return warning
-
-        json_resp = resp.json()
         return json_resp
 
     def __generic_post(self, sub_url: str, header: Dict = None, data: Dict = None) -> Dict:
@@ -140,22 +136,18 @@ class SuperfacilityAPI:
             # Raise error based on reposnce status [200 OK] [500 err]
             resp.raise_for_status()
         except requests.exceptions.HTTPError as err:
-            logging.error(f"{err}")
-            print(err, file=sys.stderr)
             if status == 404:
-                logging.warning(
-                    f"{warning_fourOfour.format(self.base_url+sub_url)}")
-                print(warning_fourOfour.format(
-                    self.base_url+sub_url), file=sys.stderr)
-                return None
+                logging.warning(warning_fourOfour.format(
+                    self.base_url+sub_url))
+                raise FourOfourException(
+                    f"404 not found {self.base_url+sub_url}")
+            elif status == 500:
+                if self.access_token is None:
+                    logging.warning(no_client)
+                    raise NoClientException(no_client)
 
-            if self.access_token is None:
-                warning = no_client
-            else:
-                warning = permissions_warning
-            logging.warning(f"{warning}")
-            print(warning, file=sys.stderr)
-            return None
+                logging.warning(f"500 Internal Server Error")
+                raise InternalServerError(f"500 Internal Server Error")
 
         json_resp = resp.json()
         return json_resp
@@ -184,18 +176,18 @@ class SuperfacilityAPI:
             # Raise error based on reposnce status [200 OK] [500 err]
             resp.raise_for_status()
         except requests.exceptions.HTTPError as err:
-            print(err, file=sys.stderr)
             if status == 404:
-                print(warning_fourOfour.format(
-                    self.base_url+sub_url), file=sys.stderr)
-                return None
+                logging.warning(warning_fourOfour.format(
+                    self.base_url+sub_url))
+                raise FourOfourException(
+                    f"404 not found {self.base_url+sub_url}")
+            elif status == 500:
+                if self.access_token is None:
+                    logging.warning(no_client)
+                    raise NoClientException(no_client)
 
-            if self.access_token is None:
-                warning = no_client
-            else:
-                warning = permissions_warning
-            print(warning, file=sys.stderr)
-            return None
+                logging.warning(f"500 Internal Server Error")
+                raise InternalServerError(f"500 Internal Server Error")
 
         json_resp = resp.json()
         return json_resp
@@ -203,7 +195,9 @@ class SuperfacilityAPI:
     def __get_system_status(self) -> None:
         """Gets the system status and all systems and stores them.
         """
-        self._status = self.__generic_request('/status')
+        logging.debug("Getting full status")
+        self._status = self.__generic_get('/status/')
+        logging.debug(f"Putting {self._status} into the systems")
         self.systems = [system['name'] for system in self._status]
 
     def system_names(self) -> List:
@@ -216,7 +210,9 @@ class SuperfacilityAPI:
         self.__get_system_status()
         return self.systems
 
-    def status(self, name: str = None, notes: bool = False, outages: bool = False, planned: bool = False, new: bool = False) -> Dict:
+    def status(self, name: str = None, notes: bool = False,
+               outages: bool = False, planned: bool = False,
+               new: bool = False) -> Dict:
         """Gets status of NERSC systems
 
         Parameters
@@ -255,16 +251,26 @@ class SuperfacilityAPI:
                 self.__get_system_status()
             return self._status
 
-        return self.__generic_request(sub_url)
+        return self.__generic_get(sub_url)
 
     def system_status(self, name: str = "perlmutter"):
-        state = NerscSystemState.UNKNOWN
-        sub_url = f'/status/{name}'
-        data = self.__generic_request(sub_url)
+        """system_status
 
+        Args:
+            name (str, optional): Name of the system to check status. Defaults to "perlmutter".
+
+        Returns:
+            NerscSystemState: State of the system as an enum
+        """
+        # Default to unknown state
+        state = NerscSystemState.UNKNOWN
+        # Call the status command to get current status
+        data = self.status(name=name)
+        # If there's an error return unknown state
         if not isinstance(data, dict):
             return state
 
+        # Active comes up for up and degraded so we split them based on descrition
         if data['status'] == 'active':
             state = NerscSystemState.ACTIVE
             if data['description'] == "System Degraded":
@@ -277,10 +283,21 @@ class SuperfacilityAPI:
         return state
 
     def check_status(self, name: str = "perlmutter"):
+        """Check Status
 
-        current_status = self.system_status()
-        down = NerscSystemState.DOWN | NerscSystemState.MAINTNAINCE | NerscSystemState.UNKNOWN
-        if current_status is down:
+        Args:
+            name (str, optional): Name to get status od. Defaults to "perlmutter".
+
+        Returns:
+            bool: Gives bool value if site is up/down, true/false
+        """
+        # Get status enum
+        current_status = self.system_status(name=name)
+
+        down = (NerscSystemState.DOWN | NerscSystemState.MAINTNAINCE |
+                NerscSystemState.UNKNOWN)
+        # Check if status is any of the down states and return false
+        if current_status in down:
             logging.debug(f"{name} is {current_status}")
             return False
 
@@ -312,7 +329,7 @@ class SuperfacilityAPI:
             self.access_token = token
             self.headers['Authorization'] = f'Bearer {self.access_token}'
 
-        return self.__generic_request(sub_url)
+        return self.__generic_get(sub_url)
 
     def projects(self, token: str = None) -> Dict:
         """Get information about your projects
@@ -333,7 +350,7 @@ class SuperfacilityAPI:
             self.access_token = token
             self.headers['Authorization'] = f'Bearer {self.access_token}'
 
-        return self.__generic_request(sub_url)
+        return self.__generic_get(sub_url)
 
     def get_groups(self, token: str = None, groups: str = None) -> Dict:
         """Get information about your groups
@@ -356,7 +373,7 @@ class SuperfacilityAPI:
             self.access_token = token
             self.headers['Authorization'] = f'Bearer {self.access_token}'
 
-        return self.__generic_request(sub_url)
+        return self.__generic_get(sub_url)
 
     def create_groups(self, token: str = None, name: str = "", repo_name: str = ""):
         """Create new groups
@@ -392,7 +409,7 @@ class SuperfacilityAPI:
             self.access_token = token
             self.headers['Authorization'] = f'Bearer {self.access_token}'
 
-        return self.__generic_request(sub_url)
+        return self.__generic_get(sub_url)
 
     def tasks(self, token: str = None, task_id: int = None) -> Dict:
         """Used to get SuperfacilityAPI tasks
@@ -414,7 +431,7 @@ class SuperfacilityAPI:
             self.access_token = token
             self.headers['Authorization'] = f'Bearer {self.access_token}'
 
-        return self.__generic_request(sub_url)
+        return self.__generic_get(sub_url)
 
     def get_jobs(self, token: str = None, site: str = NERSC_DEFAULT_COMPUTE, sacct: bool = True,
                  jobid: int = None, user: str = None, partition: str = None) -> Dict:
@@ -436,8 +453,14 @@ class SuperfacilityAPI:
         Dict
 
         """
+
         if site not in nersc_compute:
-            return None
+            return {'status': "", 'output': [], 'error': ""}
+
+        if not self.check_status(name=site):
+            logging.debug(site)
+            raise SuperfacilitySiteDown
+            # return {'status': "", 'output': [], 'error': ""}
 
         sub_url = f'/compute/jobs/{site}'
         if jobid is not None:
@@ -454,7 +477,7 @@ class SuperfacilityAPI:
             self.access_token = token
             self.headers['Authorization'] = f'Bearer {self.access_token}'
 
-        return self.__generic_request(sub_url)
+        return self.__generic_get(sub_url)
 
     def post_job(self, token: str = None,
                  site: str = NERSC_DEFAULT_COMPUTE,
@@ -482,9 +505,11 @@ class SuperfacilityAPI:
             job_info['error'] = 'not a compute site'
             return job_info
 
-        if not self.check_status():
-            job_info['error'] = f'{site} is down {self.system_status(name=site)}'
-            return job_info
+        if not self.check_status(name=site):
+            logging.debug(site)
+            raise SuperfacilitySiteDown
+            # job_info['error'] = f'{site} is down {self.system_status(name=site)}'
+            # return job_info
 
         if isinstance(token, str):
             self.access_token = token
@@ -610,18 +635,20 @@ class SuperfacilityAPI:
             ret['task_id'] = task_id
             return ret
         except TypeError as e:
-            logging.error(f"{type(e).__name__} : {e}")
+            logging.warning(f"{type(e).__name__} : {e}")
             return {'jobid': f"{type(e).__name__} : {e}"}
 
     ################## In Progress #######################
     def download(self, token: str = None, site: str = NERSC_DEFAULT_COMPUTE, remote_path: str = None,
-                 binary: bool = True, local_path: str = '.', save: bool = False) -> Dict:
+                 binary: bool = False, local_path: str = '.', save: bool = False) -> Dict:
 
-        if site is None or remote_path is None:
-            return False
+        if site is None:
+            raise SuperfacilityCmdFailed("Need site to download from")
+        if remote_path is None:
+            raise SuperfacilityCmdFailed("Need a remote path to download")
 
-        if site not in [NERSC_DEFAULT_COMPUTE, 'perlmutter']:
-            return False
+        if site not in ['perlmutter', 'cori']:
+            raise SuperfacilityCmdFailed(f"Cannot download from {site}")
 
         sub_url = '/utilities/download'
         file_name = f'{local_path}/{remote_path.split("/")[-1]}'
@@ -636,15 +663,15 @@ class SuperfacilityAPI:
             self.access_token = token
             self.headers['Authorization'] = f'Bearer {self.access_token}'
 
-        res = self.__generic_request(sub_url)
+        res = self.__generic_get(sub_url)
         if res is not None:
             if res['error'] is None:
                 if save:
                     with open(file_name, "wb") as f:
                         byte = bytes(res['file'], 'utf8')
                         f.write(byte)
-                    return True
+                    return res
                 else:
                     return res
         else:
-            return False if save else None
+            return res

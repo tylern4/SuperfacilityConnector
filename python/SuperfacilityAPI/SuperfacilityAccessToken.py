@@ -73,12 +73,15 @@ class SuperfacilityAccessToken:
         self._status = None
 
     @staticmethod
-    def save_token(key_format: str = 'json', tag: str = "sfapi"):
+    def save_token(tag: str = "sfapi"):
         sfdir = Path.joinpath(Path.home(), ".superfacility")
         sfdir.mkdir(exist_ok=True)
 
-        ipadder = requests.get("https://ifconfig.io/ip")
-        print(iris_instructions.format(ipadder.text))
+        ipadder = requests.get("https://ifconfig.me/ip")
+
+        # Sorry for the weird one liner!
+        O_24 = '.'.join(ipadder.text.split('.')[:-1]) + '.0/24'
+        print(iris_instructions.format(O_24))
 
         client_id = input("Enter client id: ")
         key_name = sfdir / f"{tag}-{client_id}.pem"
