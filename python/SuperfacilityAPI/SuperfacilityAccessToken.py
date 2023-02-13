@@ -65,12 +65,8 @@ class SuperfacilityAccessToken:
 
         # Create an access token in the __renew_toekn function
         self.access_token = None
+        self.__token_lifetime = datetime.now()
         self.__renew_token()
-
-        # Set the status at the begining to none,
-        # If status is called later it will be stored here
-        # for faster calls later
-        self._status = None
 
     @staticmethod
     def save_token(tag: str = "sfapi"):
@@ -94,6 +90,13 @@ class SuperfacilityAccessToken:
 
     @property
     def token(self):
+        logging.debug(
+            f"Token lifetime {(datetime.now()-self.__token_lifetime).seconds}")
+        if ((datetime.now()-self.__token_lifetime).seconds) > 500:
+            logging.debug(
+                f"Token lifetime {(self.__token_lifetime - datetime.now()).seconds} renewing token")
+            self.__renew_token()
+
         if self.session is not None:
             self.access_token = self.session.fetch_token()['access_token']
 
@@ -108,19 +111,26 @@ class SuperfacilityAccessToken:
 
     def __renew_token(self):
         # Create access token from client_id/private_key
-        self.__token_time = datetime.now()
-
         token_url = "https://oidc.nersc.gov/c2id/token"
+        logging.debug(f"{self.__token_lifetime - datetime.now()}")
+        self.__token_lifetime = datetime.now()
 
-        if self.client_id is not None:
-            cid = self.client_id
-        else:
+        if self.client_id is None:
+            logging.debug("Getting client_id from file path")
             cid = self.key_path.stem.split('-')[-1]
+        else:
+            cid = self.client_id
+
+        logging.debug(f"Getting token for {cid}")
 
         if self.key_path is not None:
+            logging.debug(
+                f"Getting private key from file path {self.key_path}")
             pkey = self.__check_file_and_open()
         elif self.private_key is not None:
             pkey = self.private_key
+            logging.debug(
+                f"Private key provided as string")
         else:
             # If no private key don't look for getting a token
             return None

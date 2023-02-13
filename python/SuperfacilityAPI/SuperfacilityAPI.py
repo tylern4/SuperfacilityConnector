@@ -12,6 +12,7 @@ import json
 import logging
 from pathlib import Path
 import urllib.parse
+from . import SuperfacilityAccessToken
 
 # Configurations in differnt files
 from .error_warnings import (
@@ -22,7 +23,8 @@ from .error_warnings import (
     InternalServerError,
     NoClientException,
     SuperfacilityCmdFailed,
-    SuperfacilitySiteDown
+    SuperfacilitySiteDown,
+    ApiTokenError
 )
 from .api_version import API_VERSION
 from .nersc_systems import (
@@ -65,10 +67,7 @@ class SuperfacilityAPI:
         self.base_url = f'https://api.nersc.gov/api/v{self.API_VERSION}'
         self.headers = {'accept': 'application/json',
                         'Content-Type': 'application/x-www-form-urlencoded'}
-
-        if isinstance(token, str):
-            self.access_token = token
-            self.headers['Authorization'] = f'Bearer {self.access_token}'
+        self.access_token = token
 
     def __generic_get(self, sub_url: str, header: Dict = None) -> Dict:
         """PRIVATE: Used to make a GET request to the api given a fully qualified sub url.
@@ -85,12 +84,21 @@ class SuperfacilityAPI:
             Dictionary given by requests.Responce.json()
         """
         logging.debug(f"__generic_get {sub_url}")
+        json_resp = {}
+        if isinstance(self.access_token, str):
+            self.headers['Authorization'] = f'Bearer {self.access_token}'
+        elif isinstance(self.access_token, SuperfacilityAccessToken):
+            self.headers['Authorization'] = f'Bearer {self.access_token.token}'
+        else:
+            raise PermissionError("No Token Provided")
+
         try:
             logging.debug(
                 f"Getting from {self.base_url+sub_url}")
             # Perform a get request
             resp = requests.get(
                 self.base_url+sub_url, headers=self.headers if header is None else header)
+
             status = resp.status_code
             # Raise error based on reposnce status [200 OK] [500 err]
             resp.raise_for_status()
@@ -102,10 +110,16 @@ class SuperfacilityAPI:
                 raise FourOfourException(
                     f"404 not found {self.base_url+sub_url}")
             elif status == 500:
-                logging.warning(f"500 Internal Server Error")
-                raise InternalServerError(f"500 Internal Server Error")
-        except requests.exceptions.TooManyRedirects:
-            json_resp = {}
+                logging.warning(f"500 Internal Server Error {err}")
+                raise InternalServerError(f"500 Internal Server Error {err}")
+            elif status == 403:
+                logging.warning(
+                    f"The security token included in the request is invalid. {err}")
+                raise ApiTokenError(
+                    f"The security token included in the request is invalid.  {err}")
+        except requests.exceptions.TooManyRedirects as err:
+            logging.warning(f"TooManyRedirects {err}")
+            raise InternalServerError(f"TooManyRedirects {err}")
 
         return json_resp
 
@@ -124,6 +138,15 @@ class SuperfacilityAPI:
             Dictionary given by requests.Responce.json()
         """
         logging.debug(f"__generic_post {sub_url}")
+        json_resp = {}
+
+        if isinstance(self.access_token, str):
+            self.headers['Authorization'] = f'Bearer {self.access_token}'
+        elif isinstance(self.access_token, SuperfacilityAccessToken):
+            self.headers['Authorization'] = f'Bearer {self.access_token.token}'
+        else:
+            raise PermissionError("No Token Provided")
+
         try:
             logging.debug(
                 f"Sending {data} to {self.base_url+sub_url}")
@@ -141,11 +164,15 @@ class SuperfacilityAPI:
                     self.base_url+sub_url))
                 raise FourOfourException(
                     f"404 not found {self.base_url+sub_url}")
+            elif status == 403:
+                logging.warning(
+                    f"The security token included in the request is invalid. {err}")
+                raise ApiTokenError(
+                    f"The security token included in the request is invalid.  {err}")
             elif status == 500:
                 if self.access_token is None:
                     logging.warning(no_client)
                     raise NoClientException(no_client)
-
                 logging.warning(f"500 Internal Server Error")
                 raise InternalServerError(f"500 Internal Server Error")
 
@@ -167,6 +194,15 @@ class SuperfacilityAPI:
             Dictionary given by requests.Responce.json()
         """
         logging.debug(f"__generic_delete {sub_url}")
+        json_resp = {}
+
+        if isinstance(self.access_token, str):
+            self.headers['Authorization'] = f'Bearer {self.access_token}'
+        elif isinstance(self.access_token, SuperfacilityAccessToken):
+            self.headers['Authorization'] = f'Bearer {self.access_token.token}'
+        else:
+            raise PermissionError("No Token Provided")
+
         try:
             # Perform a get request
             resp = requests.delete(
@@ -181,6 +217,11 @@ class SuperfacilityAPI:
                     self.base_url+sub_url))
                 raise FourOfourException(
                     f"404 not found {self.base_url+sub_url}")
+            elif status == 403:
+                logging.warning(
+                    f"The security token included in the request is invalid. {err}")
+                raise ApiTokenError(
+                    f"The security token included in the request is invalid.  {err}")
             elif status == 500:
                 if self.access_token is None:
                     logging.warning(no_client)
@@ -273,8 +314,8 @@ class SuperfacilityAPI:
         # Active comes up for up and degraded so we split them based on descrition
         if data['status'] == 'active':
             state = NerscSystemState.ACTIVE
-            if data['description'] == "System Degraded":
-                state = NerscSystemState.DEGRADED
+        elif data['status'] == 'degraded':
+            state = NerscSystemState.DEGRADED
         else:
             state = NerscSystemState.DOWN
             if data['description'] == "Scheduled Maintenance":
@@ -303,7 +344,7 @@ class SuperfacilityAPI:
 
         return True
 
-    def ls(self, token: str = None, site: str = NERSC_DEFAULT_COMPUTE, remote_path: str = None) -> Dict:
+    def ls(self, remote_path: str, site: str = NERSC_DEFAULT_COMPUTE) -> Dict:
         """ls comand on a site
 
         Parameters
@@ -325,10 +366,6 @@ class SuperfacilityAPI:
 
         sub_url = f'{sub_url}/{site}/{path}'
 
-        if isinstance(token, str):
-            self.access_token = token
-            self.headers['Authorization'] = f'Bearer {self.access_token}'
-
         return self.__generic_get(sub_url)
 
     def projects(self, token: str = None) -> Dict:
@@ -345,10 +382,6 @@ class SuperfacilityAPI:
         """
 
         sub_url = '/account/projects'
-
-        if isinstance(token, str):
-            self.access_token = token
-            self.headers['Authorization'] = f'Bearer {self.access_token}'
 
         return self.__generic_get(sub_url)
 
@@ -369,10 +402,6 @@ class SuperfacilityAPI:
         if groups is not None:
             sub_url = f'/account/groups/{groups}'
 
-        if isinstance(token, str):
-            self.access_token = token
-            self.headers['Authorization'] = f'Bearer {self.access_token}'
-
         return self.__generic_get(sub_url)
 
     def create_groups(self, token: str = None, name: str = "", repo_name: str = ""):
@@ -391,9 +420,6 @@ class SuperfacilityAPI:
         sub_url = '/account/groups'
 
         data = {"name": name, "repo_name": repo_name}
-        if isinstance(token, str):
-            self.access_token = token
-            self.headers['Authorization'] = f'Bearer {self.access_token}'
 
         return self.__generic_post(sub_url, data=data)
 
@@ -405,13 +431,10 @@ class SuperfacilityAPI:
         Dict
         """
         sub_url = '/account/roles'
-        if isinstance(token, str):
-            self.access_token = token
-            self.headers['Authorization'] = f'Bearer {self.access_token}'
 
         return self.__generic_get(sub_url)
 
-    def tasks(self, token: str = None, task_id: int = None) -> Dict:
+    def tasks(self, task_id: int = None) -> Dict:
         """Used to get SuperfacilityAPI tasks
 
         Parameters
@@ -427,13 +450,9 @@ class SuperfacilityAPI:
         if task_id is not None:
             sub_url = f'{sub_url}/{task_id}'
 
-        if isinstance(token, str):
-            self.access_token = token
-            self.headers['Authorization'] = f'Bearer {self.access_token}'
-
         return self.__generic_get(sub_url)
 
-    def get_jobs(self, token: str = None, site: str = NERSC_DEFAULT_COMPUTE, sacct: bool = True,
+    def get_jobs(self, site: str = NERSC_DEFAULT_COMPUTE, sacct: bool = True,
                  jobid: int = None, user: str = None, partition: str = None) -> Dict:
         """Used to get information about slurm jobs on a system
 
@@ -473,13 +492,9 @@ class SuperfacilityAPI:
         elif partition is not None:
             sub_url = f'{sub_url}&kwargs=partition%3D{partition}'
 
-        if isinstance(token, str):
-            self.access_token = token
-            self.headers['Authorization'] = f'Bearer {self.access_token}'
-
         return self.__generic_get(sub_url)
 
-    def post_job(self, token: str = None,
+    def post_job(self,
                  site: str = NERSC_DEFAULT_COMPUTE,
                  script: str = None, isPath: bool = True,
                  run_async: bool = False, timeout: int = 30, sleeptime: int = 2) -> int:
@@ -511,10 +526,6 @@ class SuperfacilityAPI:
             # job_info['error'] = f'{site} is down {self.system_status(name=site)}'
             # return job_info
 
-        if isinstance(token, str):
-            self.access_token = token
-            self.headers['Authorization'] = f'Bearer {self.access_token}'
-
         sub_url = f'/compute/jobs/{site}'
         script.replace("/", "%2F")
         is_path = 'true' if isPath else 'false'
@@ -538,7 +549,7 @@ class SuperfacilityAPI:
                 sleep(sleeptime)
 
             logging.debug(f"Checking {i} ...")
-            task = self.tasks(self.access_token, resp['task_id'])
+            task = self.tasks(resp['task_id'])
             logging.debug(f"task = {task}")
             if task is not None and task['status'] == 'completed':
                 jobinfo = json.loads(task['result'])
@@ -550,7 +561,7 @@ class SuperfacilityAPI:
 
         return job_info
 
-    def delete_job(self, token: str = None, site: str = NERSC_DEFAULT_COMPUTE, jobid: int = None) -> Dict:
+    def delete_job(self, site: str = NERSC_DEFAULT_COMPUTE, jobid: int = None) -> Dict:
         """Removes job from queue
 
         Parameters
@@ -576,9 +587,6 @@ class SuperfacilityAPI:
 
         sub_url = f'/compute/jobs/{site}/{jobid}'
         logging.debug(f"Calling {sub_url}")
-        if isinstance(token, str):
-            self.access_token = token
-            self.headers['Authorization'] = f'Bearer {self.access_token}'
 
         return self.__generic_delete(sub_url)
 
@@ -601,9 +609,6 @@ class SuperfacilityAPI:
         if site not in nersc_compute:
             return None
         sub_url = f'/utilities/command/{site}'
-        if isinstance(token, str):
-            self.access_token = token
-            self.headers['Authorization'] = f'Bearer {self.access_token}'
 
         data = {'executable': cmd}
 
@@ -623,14 +628,14 @@ class SuperfacilityAPI:
         for i in range(timeout):
             if i > 0:
                 sleep(sleeptime)
-            task = self.tasks(self.access_token, resp['task_id'])
+            task = self.tasks(resp['task_id'])
             if isinstance(task, dict) and task['status'] == 'completed':
                 return json.loads(task['result'])
             sleep(sleeptime)
 
         try:
             # Gives back error if something went wrong
-            task = self.tasks(self.access_token, resp['task_id'])
+            task = self.tasks(resp['task_id'])
             ret = json.loads(task['result'])
             ret['task_id'] = task_id
             return ret
@@ -658,10 +663,6 @@ class SuperfacilityAPI:
 
         if binary:
             sub_url = f'{sub_url}?binary=true'
-
-        if isinstance(token, str):
-            self.access_token = token
-            self.headers['Authorization'] = f'Bearer {self.access_token}'
 
         res = self.__generic_get(sub_url)
         if res is not None:

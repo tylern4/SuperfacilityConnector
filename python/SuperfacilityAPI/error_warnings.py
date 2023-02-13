@@ -34,6 +34,10 @@ class InternalServerError(SuperfacilityError):
     pass
 
 
+class ApiTokenError(SuperfacilityError):
+    pass
+
+
 class NoClientException(SuperfacilityError):
     pass
 

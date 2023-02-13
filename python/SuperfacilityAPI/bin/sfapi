@@ -257,6 +257,7 @@ def squeue(ctx, site, sacct, user, jobid):
             outputs = [{k: oj[k] for k in cols} for oj in ret['output']]
     except Exception as err:
         click.echo(f"{type(err).__name__}: {err}")
+        exit(1)
 
     for output in outputs:
         click_json(output)
