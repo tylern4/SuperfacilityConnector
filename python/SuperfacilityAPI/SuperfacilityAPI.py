@@ -368,7 +368,7 @@ class SuperfacilityAPI:
 
         return self.__generic_get(sub_url)
 
-    def projects(self, token: str = None) -> Dict:
+    def projects(self) -> Dict:
         """Get information about your projects
 
         Parameters
@@ -385,7 +385,7 @@ class SuperfacilityAPI:
 
         return self.__generic_get(sub_url)
 
-    def get_groups(self, token: str = None, groups: str = None) -> Dict:
+    def get_groups(self, groups: str = None) -> Dict:
         """Get information about your groups
 
         Parameters
@@ -404,7 +404,7 @@ class SuperfacilityAPI:
 
         return self.__generic_get(sub_url)
 
-    def create_groups(self, token: str = None, name: str = "", repo_name: str = ""):
+    def create_groups(self, name: str = "", repo_name: str = ""):
         """Create new groups
 
         Parameters
@@ -423,7 +423,7 @@ class SuperfacilityAPI:
 
         return self.__generic_post(sub_url, data=data)
 
-    def roles(self, token: str = None) -> Dict:
+    def roles(self, ) -> Dict:
         """Get roles for your account
 
         Returns
@@ -494,10 +494,11 @@ class SuperfacilityAPI:
 
         return self.__generic_get(sub_url)
 
-    def post_job(self,
-                 site: str = NERSC_DEFAULT_COMPUTE,
+    def post_job(self, site: str = NERSC_DEFAULT_COMPUTE,
                  script: str = None, isPath: bool = True,
-                 run_async: bool = False, timeout: int = 30, sleeptime: int = 2) -> int:
+                 run_async: bool = False,
+                 timeout: int = 30,
+                 sleeptime: int = 2) -> int:
         """Adds a new job to the queue
 
         Parameters
@@ -590,7 +591,8 @@ class SuperfacilityAPI:
 
         return self.__generic_delete(sub_url)
 
-    def custom_cmd(self, token: str = None, run_async: bool = False,
+    def custom_cmd(self,
+                   run_async: bool = False,
                    site: str = NERSC_DEFAULT_COMPUTE, cmd: str = None,
                    timeout: int = 30, sleeptime: int = 2) -> Dict:
         """Run custom command
@@ -644,7 +646,8 @@ class SuperfacilityAPI:
             return {'jobid': f"{type(e).__name__} : {e}"}
 
     ################## In Progress #######################
-    def download(self, token: str = None, site: str = NERSC_DEFAULT_COMPUTE, remote_path: str = None,
+    def download(self,
+                 site: str = NERSC_DEFAULT_COMPUTE, remote_path: str = None,
                  binary: bool = False, local_path: str = '.', save: bool = False) -> Dict:
 
         if site is None:
