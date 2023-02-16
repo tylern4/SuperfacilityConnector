@@ -15,7 +15,7 @@ import urllib.parse
 from . import SuperfacilityAccessToken
 
 # Configurations in differnt files
-from .error_warnings import (
+from .SuperfacilityErrors import (
     permissions_warning,
     warning_fourOfour,
     no_client,
@@ -30,11 +30,43 @@ from .api_version import API_VERSION
 from .nersc_systems import (
     NERSC_DEFAULT_COMPUTE,
     nersc_systems,
-    nersc_compute,
-    nersc_filesystems,
+    NerscCompute,
+    NerscFilesystems
 )
 
-from enum import Flag, auto
+from enum import Flag, auto, Enum
+
+global HAVE_PANDAS
+try:
+    import pandas as pd
+    HAVE_PANDAS = True
+except ImportError:
+    HAVE_PANDAS = False
+
+
+sacct_columns = ['account', 'admincomment', 'alloccpus', 'allocnodes', 'alloctres', 'associd', 'avecpu',
+                 'avecpufreq',  'avediskread', 'avediskwrite', 'avepages', 'averss', 'avevmsize', 'blockid',
+                 'cluster', 'comment', 'constraints', 'consumedenergy', 'consumedenergyraw', 'cputime', 'cputimeraw',
+                 'dbindex', 'derivedexitcode', 'elapsed', 'elapsedraw', 'eligible', 'end', 'exitcode', 'flags',
+                 'gid', 'group', 'jobid', 'jobidraw', 'jobname', 'layout', 'maxdiskread', 'maxdiskreadnode',
+                 'maxdiskreadtask', 'maxdiskwrite', 'maxdiskwritenode', 'maxdiskwritetask', 'maxpages',
+                 'maxpagesnode', 'maxpagestask', 'maxrss', 'maxrssnode', 'maxrsstask', 'maxvmsize', 'maxvmsizenode',
+                 'maxvmsizetask', 'mcslabel', 'mincpu', 'mincpunode', 'mincputask', 'ncpus', 'nnodes',
+                 'nodelist', 'ntasks', 'priority', 'partition', 'qos', 'qosraw', 'reason', 'reqcpufreq',
+                 'reqcpufreqmin', 'reqcpufreqmax', 'reqcpufreqgov', 'reqcpus', 'reqmem', 'reqnodes', 'reqtres',
+                 'reservation', 'reservationid', 'reserved', 'resvcpu', 'resvcpuraw', 'start', 'state', 'submit',
+                 'suspended', 'systemcpu', 'systemcomment', 'timelimit', 'timelimitraw', 'totalcpu', 'tresusageinave',
+                 'tresusageinmax', 'tresusageinmaxnode', 'tresusageinmaxtask', 'tresusageinmin', 'tresusageinminnode',
+                 'tresusageinmintask', 'tresusageintot', 'tresusageoutave', 'tresusageoutmax', 'tresusageoutmaxnode',
+                 'tresusageoutmaxtask', 'tresusageoutmin', 'tresusageoutminnode', 'tresusageoutmintask',
+                 'tresusageouttot', 'uid', 'user', 'usercpu', 'wckey', 'wckeyid', 'workdir', ]
+
+squeue_columns = ['account', 'tres_per_node', 'min_cpus', 'min_tmp_disk', 'end_time', 'features', 'group',
+                  'over_subscribe', 'jobid', 'name', 'comment', 'time_limit', 'min_memory', 'req_nodes',
+                  'command', 'priority', 'qos', 'reason', '', 'st', 'user', 'reservation', 'wckey', 'exc_nodes',
+                  'nice', 's:c:t', 'exec_host', 'cpus', 'nodes', 'dependency', 'array_job_id', 'sockets_per_node',
+                  'cores_per_socket', 'threads_per_core', 'array_task_id', 'time_left', 'time', 'nodelist',
+                  'contiguous', 'partition', 'nodelist(reason)', 'start_time', 'state', 'uid', 'submit_time', 'licenses', 'core_spec', 'schednodes', 'work_dir', ]
 
 
 class NerscSystemState(Flag):
@@ -287,6 +319,10 @@ class SuperfacilityAPI:
         if name is not None and name in nersc_systems:
             sub_url = f'{sub_url}/{name}'
 
+        if name == "muller":
+            return {'name': 'muller', 'full_name': 'muller', 'description': 'System is active',
+                    'system_type': 'compute', 'notes': [], 'status': 'active', 'updated_at': 'never'}
+
         if sub_url == '/status' and not new:
             if self._status is None:
                 self.__get_system_status()
@@ -313,9 +349,9 @@ class SuperfacilityAPI:
 
         # Active comes up for up and degraded so we split them based on descrition
         if data['status'] == 'active':
-            state = NerscSystemState.ACTIVE
+            return NerscSystemState.ACTIVE
         elif data['status'] == 'degraded':
-            state = NerscSystemState.DEGRADED
+            return NerscSystemState.DEGRADED
         else:
             state = NerscSystemState.DOWN
             if data['description'] == "Scheduled Maintenance":
@@ -473,12 +509,13 @@ class SuperfacilityAPI:
 
         """
 
-        if site not in nersc_compute:
+        if site not in NerscCompute:
             return {'status': "", 'output': [], 'error': ""}
 
         if not self.check_status(name=site):
             logging.debug(site)
-            raise SuperfacilitySiteDown
+            raise SuperfacilitySiteDown(
+                f'{site} is down, Reason: {self.system_status(name=site)}')
             # return {'status': "", 'output': [], 'error': ""}
 
         sub_url = f'/compute/jobs/{site}'
@@ -493,6 +530,40 @@ class SuperfacilityAPI:
             sub_url = f'{sub_url}&kwargs=partition%3D{partition}'
 
         return self.__generic_get(sub_url)
+
+    def squeue(self,
+               site: str = NERSC_DEFAULT_COMPUTE,
+               jobid: int = None,
+               user: str = None,
+               partition: str = None,
+               dataframe: bool = False):
+        """squeue
+
+        Returns similar information as squeue command line
+
+        Args:
+            site (str, optional): _description_. Defaults to NERSC_DEFAULT_COMPUTE.
+            sacct (bool, optional): _description_. Defaults to True.
+            jobid (int, optional): _description_. Defaults to None.
+            user (str, optional): _description_. Defaults to None.
+            partition (str, optional): _description_. Defaults to None.
+        """
+
+        jobs = self.get_jobs(site=site,
+                             jobid=jobid,
+                             user=user,
+                             partition=partition,
+                             sacct=False)
+        if 'output' in jobs:
+            jobs = jobs['output']
+
+        if dataframe and HAVE_PANDAS:
+            if len(jobs) == 0:
+                return pd.DataFrame(columns=squeue_columns)
+            else:
+                return pd.DataFrame(jobs)
+
+        return jobs
 
     def post_job(self, site: str = NERSC_DEFAULT_COMPUTE,
                  script: str = None, isPath: bool = True,
@@ -517,15 +588,15 @@ class SuperfacilityAPI:
         """
 
         job_info = {'error': None, 'jobid': None, 'task_id': None}
-        if site not in nersc_compute:
+
+        if site not in NerscCompute:
             job_info['error'] = 'not a compute site'
             return job_info
 
         if not self.check_status(name=site):
             logging.debug(site)
-            raise SuperfacilitySiteDown
-            # job_info['error'] = f'{site} is down {self.system_status(name=site)}'
-            # return job_info
+            raise SuperfacilitySiteDown(
+                f'{site} is down, Reason: {self.system_status(name=site)}')
 
         sub_url = f'/compute/jobs/{site}'
         script.replace("/", "%2F")
@@ -576,7 +647,7 @@ class SuperfacilityAPI:
         -------
         Dict
         """
-        if site not in nersc_compute:
+        if site not in NerscCompute:
             return None
 
         down = NerscSystemState.DOWN | NerscSystemState.MAINTNAINCE | NerscSystemState.UNKNOWN
@@ -608,7 +679,7 @@ class SuperfacilityAPI:
         -------
         Dict
         """
-        if site not in nersc_compute:
+        if site not in NerscCompute:
             return None
         sub_url = f'/utilities/command/{site}'
 

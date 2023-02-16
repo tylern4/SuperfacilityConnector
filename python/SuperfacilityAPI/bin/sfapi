@@ -5,7 +5,7 @@ from unicodedata import name
 from SuperfacilityAPI import (
     SuperfacilityAPI,
     SuperfacilityAccessToken,
-    error_warnings
+    SuperfacilityErrors
 )
 from SuperfacilityAPI.nersc_systems import NERSC_DEFAULT_COMPUTE
 
@@ -104,7 +104,7 @@ def outages(ctx, site):
                    for site in site.split(",")]
 
         click_json(ret)
-    except error_warnings.InternalServerError as err:
+    except SuperfacilityErrors.InternalServerError as err:
         click.echo(f"{type(err).__name__}: {err}")
 
 

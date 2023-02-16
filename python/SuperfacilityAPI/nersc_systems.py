@@ -1,3 +1,6 @@
+from enum import Enum, EnumMeta
+
+
 NERSC_DEFAULT_COMPUTE = 'perlmutter'
 
 nersc_systems = ['perlmutter', 'cori', 'dna', 'dtns', 'global_homes', 'projectb', 'global_common',
@@ -6,7 +9,23 @@ nersc_systems = ['perlmutter', 'cori', 'dna', 'dtns', 'global_homes', 'projectb'
                  'spin', 'jgi_int_webservers', 'jgidb', 'int', 'webservers', 'iris', 'sciencedatabases',
                  'myproxy', 'newt', 'ssh-proxy', 'mongodb', 'nomachine', 'regent', 'archive']
 
-nersc_compute = ['perlmutter', 'cori']
+# https://stackoverflow.com/a/62854511
 
-nersc_filesystems = ['dna', 'dtns', 'global_homes', 'projectb', 'global_common',
-                     'community_filesystem']
+
+class MyEnumMeta(EnumMeta):
+    def __contains__(cls, item):
+        return item in cls.__members__.values()
+
+
+class NerscCompute(str, Enum, metaclass=MyEnumMeta):
+    CORI = 'cori'
+    PERLMUTTER = 'perlmutter'
+    MULLER = 'muller'
+
+
+class NerscFilesystems(str, Enum, metaclass=MyEnumMeta):
+    DNA = 'dna'
+    DTN = 'dtns'
+    HOME = 'global_homes'
+    GLOBAL_COMMON = 'global_common'
+    CFS = 'community_filesystem'
