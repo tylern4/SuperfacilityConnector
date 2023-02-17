@@ -1,3 +1,5 @@
+
+
 ### Superfacility Connector
 
 Connector to the SuperfaclityAPI in python with a command line program.
@@ -30,7 +32,14 @@ $ sfapi status all
 
 The `sfapi` command line looks for keys in `$HOME/.superfacility` in the format of `.pem`. Save the private key as `clientid.pem` where clienid is the client id given from iris (i.e. `mqyqtld6l6roq.pem`). 
 
-You can also specify a different clientid and location of a pem file with the `--clientid` and `--private` options to `sfapi`.
+To have the sfapi help manage keys you can use,
+
+```
+sfapi manage-keys --client home
+```
+
+Which will give insructions on how to obtain a key and save the key in the right format to be used later.
+
 
 List the roles associated with the clientid.
 

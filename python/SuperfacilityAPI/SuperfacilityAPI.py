@@ -84,7 +84,7 @@ class SuperfacilityAPI:
     _status = None
     access_token = None
 
-    def __init__(self, token=None):
+    def __init__(self, token=None, base_url=None):
         """SuperfacilityAPI
 
         Parameters
@@ -95,8 +95,11 @@ class SuperfacilityAPI:
             Private key obtained from iris, by default None
         """
         self.API_VERSION = API_VERSION
-        # Base url for sfapi requests
-        self.base_url = f'https://api.nersc.gov/api/v{self.API_VERSION}'
+        if base_url is None:
+            # Base url for sfapi requests
+            self.base_url = f'https://api.nersc.gov/api/v{self.API_VERSION}'
+        else:
+            self.base_url = base_url
         self.headers = {'accept': 'application/json',
                         'Content-Type': 'application/x-www-form-urlencoded'}
         self.access_token = token

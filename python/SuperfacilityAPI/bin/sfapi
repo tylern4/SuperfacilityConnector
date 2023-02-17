@@ -35,7 +35,8 @@ def check_file_and_open(file_path: str = "") -> str:
               help='Client ID for your key. Can be used to specify which key to look for in $HOME/.superfacility.')
 @click.option('--client', '-c', default=None,
               help='Client ID for your key. Can be used to specify which key to look for in $HOME/.superfacility.')
-@click.option('--debug', '-d', is_flag=True, default=False, help='Print debug messages from sfapi and SuperfacilityConnector')
+@click.option('--debug', '-d', is_flag=True, default=False,
+              help='Print debug messages from sfapi and SuperfacilityConnector')
 @click.option('--sync', is_flag=True, default=False, help='Run async')
 @click.pass_context
 def cli(ctx, client, clientid, debug, sync):
@@ -141,7 +142,7 @@ def roles(ctx):
     try:
         ret = [{k: oj[k] for k in ['repo_name', 'id',
                                    'iris_role', 'description']} for oj in ret]
-        click.echo(ret)
+        click_json(ret)
     except Exception as err:
         click.echo(f"{type(err).__name__}: {err}")
 
