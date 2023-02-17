@@ -670,6 +670,36 @@ class SuperfacilityAPI:
 
         return job_info
 
+    def sbatch(self, site: str = NERSC_DEFAULT_COMPUTE,
+               script: str = None, isPath: bool = True) -> int:
+        """Adds a new job to the queue like sbatch
+
+        Parameters
+        ----------
+        site : str, optional
+            Site to add job to, by default NERSC_DEFAULT_COMPUTE
+        script : str, optional
+            Path or script to call sbatch on, by default None
+        isPath : bool, optional
+            Is the script a path on the site or a file, by default True
+
+        Returns
+        -------
+        int
+            slurm jobid
+        """
+        # We can check if the path is on the current system
+        # And if not assume it's a path on the nersc system
+        if Path(script).exists():
+            isPath = False
+        else:
+            out = self.ls(script)
+            if out['status'] == "ERROR":
+                raise FileNotFoundError(f"{script} Not found on {site}")
+        job_output = self.post_job(site=site, script=script, isPath=isPath)
+
+        return job_output['jobid']
+
     def delete_job(self, site: str = NERSC_DEFAULT_COMPUTE, jobid: int = None) -> Dict:
         """Removes job from queue
 
@@ -691,13 +721,31 @@ class SuperfacilityAPI:
         current_status = self.system_status()
         if current_status is down:
             logging.debug(
-                f"System is {current_status}, job cannot be submitted")
+                f"System is {current_status}, job cannot check jobs")
             return None
 
         sub_url = f'/compute/jobs/{site}/{jobid}'
         logging.debug(f"Calling {sub_url}")
 
         return self.__generic_delete(sub_url)
+
+    def scancel(self, jobid: int, site: str = NERSC_DEFAULT_COMPUTE) -> bool:
+        """Removes job from queue
+
+        Parameters
+        ----------
+        jobid : int
+            Jobid to remove
+        site : str, optional
+            Site to remove job from, by default NERSC_DEFAULT_COMPUTE
+
+
+        Returns
+        -------
+        bool
+        """
+        del_job = self.delete_job(site=site, jobid=jobid)
+        return (del_job['status'] == 'OK')
 
     def custom_cmd(self,
                    run_async: bool = False,
