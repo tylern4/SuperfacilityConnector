@@ -688,14 +688,20 @@ class SuperfacilityAPI:
         int
             slurm jobid
         """
-        # We can check if the path is on the current system
-        # And if not assume it's a path on the nersc system
-        if Path(script).exists():
-            isPath = False
-        else:
+        # We can check if the path is on the nersc system
+        if isPath:
             out = self.ls(script)
             if out['status'] == "ERROR":
                 raise FileNotFoundError(f"{script} Not found on {site}")
+        # Then see if it's a path on the current system
+        elif Path(script).exists():
+            logging.debug(
+                f"Looks like the script is a path, opending {script}")
+            with open(Path(script)) as contents:
+                script = contents.read()
+        else:
+            logging.debug(f"Looks like the script is a string {script}")
+
         job_output = self.post_job(site=site, script=script, isPath=isPath)
 
         return job_output['jobid']
