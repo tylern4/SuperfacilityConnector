@@ -568,6 +568,40 @@ class SuperfacilityAPI:
 
         return jobs
 
+    def sacct(self,
+              site: str = NERSC_DEFAULT_COMPUTE,
+              jobid: int = None,
+              user: str = None,
+              partition: str = None,
+              dataframe: bool = False):
+        """sacct
+
+        Returns similar information as sacct command line
+
+        Args:
+            site (str, optional): _description_. Defaults to NERSC_DEFAULT_COMPUTE.
+            sacct (bool, optional): _description_. Defaults to True.
+            jobid (int, optional): _description_. Defaults to None.
+            user (str, optional): _description_. Defaults to None.
+            partition (str, optional): _description_. Defaults to None.
+        """
+
+        jobs = self.get_jobs(site=site,
+                             jobid=jobid,
+                             user=user,
+                             partition=partition,
+                             sacct=True)
+        if 'output' in jobs:
+            jobs = jobs['output']
+
+        if dataframe and HAVE_PANDAS:
+            if len(jobs) == 0:
+                return pd.DataFrame(columns=sacct_columns)
+            else:
+                return pd.DataFrame(jobs)
+
+        return jobs
+
     def post_job(self, site: str = NERSC_DEFAULT_COMPUTE,
                  script: str = None, isPath: bool = True,
                  run_async: bool = False,

@@ -1,8 +1,6 @@
 from enum import Enum, EnumMeta
 
 
-NERSC_DEFAULT_COMPUTE = 'perlmutter'
-
 nersc_systems = ['perlmutter', 'cori', 'dna', 'dtns', 'global_homes', 'projectb', 'global_common',
                  'community_filesystem', 'matlab', 'jupyter', 'nersc_center', 'helpportal', 'website',
                  'rstudio', 'sgns', 'network', 'ldap', 'integ_datalanguage', 'mathematica', 'globus',
@@ -29,3 +27,6 @@ class NerscFilesystems(str, Enum, metaclass=MyEnumMeta):
     HOME = 'global_homes'
     GLOBAL_COMMON = 'global_common'
     CFS = 'community_filesystem'
+
+
+NERSC_DEFAULT_COMPUTE = NerscCompute.PERLMUTTER
