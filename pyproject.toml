@@ -1,0 +1,14 @@
+[project]
+name = "SuperfacilityConnector"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["ruff>=0.6.1", "click>=8.1.7", "sfapi-client>=0.1.0"]
+
+[project.scripts]
+sfapi = "SuperfacilityConnector.sfapi:cli"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
